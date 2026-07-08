@@ -73,25 +73,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Pishpirik — Play the Kazakh card game online" },
+      { title: "Pishpirik — Play the card game online" },
       {
         name: "description",
         content:
-          "Play Pishpirik, the classic Kazakh & Kyrgyz card game, 1v1 online with a friend. Create a room, share the code, and play.",
+          "Play Pishpirik, the classic card game, 1v1 online with a friend. Create a room, share the code, and play.",
       },
-      { property: "og:title", content: "Pishpirik — Play the Kazakh card game online" },
+      { property: "og:title", content: "Pishpirik — Play the card game online" },
       {
         property: "og:description",
         content:
-          "Play Pishpirik, the classic Kazakh & Kyrgyz card game, 1v1 online with a friend. Create a room, share the code, and play.",
+          "Play Pishpirik, the classic card game, 1v1 online with a friend. Create a room, share the code, and play.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Pishpirik — Play the Kazakh card game online" },
+      { name: "twitter:title", content: "Pishpirik — Play the card game online" },
       {
         name: "twitter:description",
         content:
-          "Play Pishpirik, the classic Kazakh & Kyrgyz card game, 1v1 online with a friend. Create a room, share the code, and play.",
+          "Play Pishpirik, the classic card game, 1v1 online with a friend. Create a room, share the code, and play.",
       },
     ],
     links: [

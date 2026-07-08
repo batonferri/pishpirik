@@ -1,4 +1,4 @@
-// Kazakh / Kyrgyz Pishpirik game engine (1v1)
+// Pishpirik game engine (1v1)
 // Rules used:
 //  - 52-card deck. Deal 4 to each player, 4 face-down to table with top card face up.
 //  - If the first face-up table card is a Jack, it stays on the pile and captures nothing

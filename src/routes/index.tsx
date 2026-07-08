@@ -63,7 +63,7 @@ function Home() {
             Pishpirik
           </h1>
           <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-            The classic Kazakh &amp; Kyrgyz card game. Play 1v1 online.
+            The classic card game. Play 1v1 online.
           </p>
         </div>
 
