@@ -1,0 +1,158 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Pishpirik design system — felt-green table, warm gold accents, cream cards.
+ * All colors are oklch semantic tokens; components must not hardcode colors.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-felt: var(--felt);
+  --color-felt-deep: var(--felt-deep);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-card-red: var(--card-red);
+  --color-card-black: var(--card-black);
+  --color-card-face: var(--card-face);
+  --shadow-card: 0 6px 18px -6px oklch(0 0 0 / 0.55), 0 2px 4px -1px oklch(0 0 0 / 0.4);
+  --shadow-glow: 0 0 0 3px var(--gold), 0 0 24px oklch(0.82 0.16 85 / 0.55);
+}
+
+:root {
+  --radius: 0.85rem;
+  --background: oklch(0.24 0.05 155);
+  --foreground: oklch(0.97 0.02 90);
+  --felt: oklch(0.32 0.08 155);
+  --felt-deep: oklch(0.18 0.05 155);
+  --gold: oklch(0.82 0.16 85);
+  --gold-foreground: oklch(0.2 0.05 60);
+  --card: oklch(0.98 0.015 90);
+  --card-foreground: oklch(0.22 0.03 60);
+  --card-face: oklch(0.98 0.015 90);
+  --card-red: oklch(0.55 0.22 25);
+  --card-black: oklch(0.2 0.02 60);
+  --popover: oklch(0.28 0.06 155);
+  --popover-foreground: oklch(0.97 0.02 90);
+  --primary: oklch(0.82 0.16 85);
+  --primary-foreground: oklch(0.2 0.05 60);
+  --secondary: oklch(0.36 0.06 155);
+  --secondary-foreground: oklch(0.97 0.02 90);
+  --muted: oklch(0.3 0.05 155);
+  --muted-foreground: oklch(0.78 0.03 90);
+  --accent: oklch(0.55 0.18 25);
+  --accent-foreground: oklch(0.98 0.015 90);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.015 90);
+  --border: oklch(0.4 0.05 155);
+  --input: oklch(0.3 0.05 155);
+  --ring: oklch(0.82 0.16 85);
+}
+
+.dark {
+  --background: oklch(0.2 0.05 155);
+  --foreground: oklch(0.97 0.02 90);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    background: radial-gradient(
+      ellipse at center,
+      var(--color-felt) 0%,
+      var(--color-felt-deep) 100%
+    );
+    color: var(--color-foreground);
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+  }
+}
+
+@utility btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px -4px oklch(0.82 0.16 85 / 0.6);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
+}
+@utility btn-primary-hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 8px 22px -6px oklch(0.82 0.16 85 / 0.7);
+}
+@utility btn-ghost {
+  background-color: transparent;
+  color: var(--color-foreground);
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+@utility panel {
+  background-color: var(--color-popover);
+  color: var(--color-popover-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: 0 10px 40px -12px oklch(0 0 0 / 0.55);
+}
+@utility playing-card {
+  background-color: var(--color-card-face);
+  color: var(--color-card-foreground);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid oklch(0 0 0 / 0.08);
+}
+@utility card-back {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  background:
+    repeating-linear-gradient(45deg, oklch(0.35 0.14 25) 0 8px, oklch(0.28 0.12 25) 8px 16px),
+    var(--color-accent);
+  border: 2px solid var(--color-gold);
+}
