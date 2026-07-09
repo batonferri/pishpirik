@@ -369,6 +369,9 @@ function FinalScore({
           <Row label="Jacks" a={b[0].jacks} bv={b[1].jacks} />
           <Row label="2 of Clubs" a={b[0].twoOfClubs} bv={b[1].twoOfClubs} />
           <Row label="10 of Diamonds" a={b[0].tenOfDiamonds} bv={b[1].tenOfDiamonds} />
+          <Row label="Queens" a={b[0].queens} bv={b[1].queens} />
+          <Row label="Kings" a={b[0].kings} bv={b[1].kings} />
+          <Row label="Tens" a={b[0].tens} bv={b[1].tens} />
           <Row label="Most cards (+3)" a={b[0].mostCards} bv={b[1].mostCards} />
           <Row label="Pishpirik bonuses" a={b[0].pishti} bv={b[1].pishti} />
           <tr className="font-bold border-t border-[color:var(--color-border)]">

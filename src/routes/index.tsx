@@ -115,27 +115,6 @@ function Home() {
             {error}
           </p>
         )}
-
-        <details className="mt-6 text-sm text-[color:var(--color-muted-foreground)]">
-          <summary className="cursor-pointer hover:text-[color:var(--color-foreground)]">
-            How to play
-          </summary>
-          <div className="mt-3 space-y-2 leading-relaxed">
-            <p>Each player gets 4 cards; 4 more go face up on the table.</p>
-            <p>
-              On your turn, play a card. If it matches the top pile card, or if it&apos;s a
-              <b> Jack</b>, you capture the whole pile.
-            </p>
-            <p>
-              <b>Pishpirik</b>: capturing when the pile has just 1 card = <b>+10</b>. Jack capturing
-              a single Jack = <b>+20</b>.
-            </p>
-            <p>
-              End scoring: Ace = 1, Jack = 1, 2♣ = 2, 10♦ = 3, most cards = +3, plus your pishpirik
-              bonuses.
-            </p>
-          </div>
-        </details>
       </div>
     </div>
   );

@@ -54,6 +54,9 @@ export interface ScoreBreakdown {
   jacks: number;
   twoOfClubs: number;
   tenOfDiamonds: number;
+  queens: number;
+  kings: number;
+  tens: number;
   mostCards: number;
   pishti: number;
   total: number;
@@ -135,20 +138,24 @@ export function playCard(state: GameState, playerIdx: 0 | 1, cardIdx: number): G
   const top = s.pile[s.pile.length - 1];
   const isJack = card.r === "J";
   const matches = !!top && top.r === card.r;
-  const captures = isJack || matches;
+  const captures = !!top && (isJack || matches);
 
   let pishti = false;
   if (captures) {
     // pishpirik: pile has exactly 1 card before this play
     if (s.pile.length === 1) {
-      // Jack over Jack = 20, otherwise 10 (Jack captures a single non-jack still counts as 10)
-      if (isJack && top && top.r === "J") {
+      // Jack on Jack => 20 points
+      if (isJack && top.r === "J") {
         me.pishtiPoints += 20;
-      } else {
-        me.pishtiPoints += 10;
+        pishti = true;
       }
-      pishti = true;
+      // Same rank (except J on J which was already handled) => 10 points
+      else if (matches) {
+        me.pishtiPoints += 10;
+        pishti = true;
+      }
     }
+
     s.pile.push(card);
     me.captured.push(...s.pile);
     s.pile = [];
@@ -186,18 +193,27 @@ function finalize(s: GameState) {
     const p = s.players[idx];
     let aces = 0,
       jacks = 0,
+      queens = 0,
+      kings = 0,
+      tens = 0,
       twoC = 0,
       tenD = 0;
     for (const c of p.captured) {
       if (c.r === "A") aces++;
       if (c.r === "J") jacks++;
-      if (c.r === "2" && c.s === "C") twoC = 2;
-      if (c.r === "10" && c.s === "D") tenD = 3;
+      if (c.r === "Q") queens++;
+      if (c.r === "K") kings++;
+      if (c.r === "10" && c.s !== "D") tens++;
+      if (c.r === "2" && c.s === "C") twoC++;
+      if (c.r === "10" && c.s === "D") tenD = 2;
     }
     return {
       playerIdx: idx,
       aces,
       jacks,
+      queens,
+      kings,
+      tens,
       twoOfClubs: twoC,
       tenOfDiamonds: tenD,
       mostCards: 0,
@@ -211,7 +227,16 @@ function finalize(s: GameState) {
   else if (breakdown[1].cardCount > breakdown[0].cardCount) breakdown[1].mostCards = 3;
 
   for (const b of breakdown) {
-    b.total = b.aces + b.jacks + b.twoOfClubs + b.tenOfDiamonds + b.mostCards + b.pishti;
+    b.total =
+      b.aces +
+      b.jacks +
+      b.queens +
+      b.kings +
+      b.tens +
+      b.twoOfClubs +
+      b.tenOfDiamonds +
+      b.mostCards +
+      b.pishti;
   }
 
   s.scores = { p0: breakdown[0].total, p1: breakdown[1].total, breakdown };
