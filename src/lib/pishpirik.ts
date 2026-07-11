@@ -99,6 +99,7 @@ export function cardEq(a: Card, b: Card): boolean {
 export function newGame(
   p0: { id: string; name: string },
   p1: { id: string; name: string },
+  startingTurn: 0 | 1 = 0,
 ): GameState {
   const deck = shuffle(freshDeck());
   const players: [PlayerState, PlayerState] = [
@@ -110,7 +111,7 @@ export function newGame(
     deck,
     pile,
     players,
-    turn: 0,
+    turn: startingTurn,
     lastCapturer: null,
     status: "playing",
     winner: null,

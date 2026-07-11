@@ -1,6 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { createRoom, getLocalPlayer, joinRoom, setLocalPlayer } from "@/lib/game-client";
+import {
+  friendlyError,
+  getLocalPlayer,
+  getRoomToken,
+  setLocalPlayer,
+  setRoomToken,
+} from "@/lib/game-client";
+import { createRoomFn, joinRoomFn } from "@/lib/game.functions";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -20,8 +27,9 @@ function Home() {
 
   const persistName = () => {
     const p = getLocalPlayer();
-    setLocalPlayer({ ...p, name: name.trim() || "Player" });
-    return { ...p, name: name.trim() || "Player" };
+    const next = { ...p, name: name.trim() || "Player" };
+    setLocalPlayer(next);
+    return next;
   };
 
   const handleCreate = async () => {
@@ -29,36 +37,44 @@ function Home() {
     setLoading("create");
     try {
       const player = persistName();
-      const room = await createRoom(player);
+      const { room, token } = await createRoomFn({ data: { host: player } });
+      setRoomToken(room.code, token);
       navigate({ to: "/game/$code", params: { code: room.code } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create room");
+      setError(friendlyError(e, "Failed to create room"));
       setLoading(null);
     }
   };
 
   const handleJoin = async () => {
     setError(null);
-    if (!code.trim()) {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) {
       setError("Enter a room code");
       return;
     }
     setLoading("join");
     try {
       const player = persistName();
-      const room = await joinRoom(code.trim().toUpperCase(), player);
+      const existingToken = getRoomToken(trimmed) ?? undefined;
+      const { room, token } = await joinRoomFn({
+        data: { code: trimmed, guest: player, token: existingToken },
+      });
+      setRoomToken(room.code, token);
       navigate({ to: "/game/$code", params: { code: room.code } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to join room");
+      setError(friendlyError(e, "Failed to join room"));
       setLoading(null);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md panel p-8">
+      <div className="w-full max-w-md panel p-8 anim-rise">
         <div className="text-center mb-8">
-          <div className="inline-block text-5xl mb-2">🂡</div>
+          <div className="inline-block text-5xl mb-2" aria-hidden>
+            🂡
+          </div>
           <h1 className="text-4xl font-bold tracking-tight text-[color:var(--color-gold)]">
             Pishpirik
           </h1>
@@ -67,8 +83,11 @@ function Home() {
           </p>
         </div>
 
-        <label className="block text-sm font-medium mb-1">Your nickname</label>
+        <label htmlFor="nickname" className="block text-sm font-medium mb-1">
+          Your nickname
+        </label>
         <input
+          id="nickname"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Aidar"
@@ -79,9 +98,9 @@ function Home() {
         <button
           onClick={handleCreate}
           disabled={loading !== null}
-          className="btn-primary w-full mb-3 hover:btn-primary-hover disabled:opacity-60"
+          className="btn-primary btn-press w-full mb-3 hover:btn-primary-hover disabled:opacity-60"
         >
-          {loading === "create" ? "Creating…" : "Create room"}
+          {loading === "create" ? "Creating room…" : "Create room"}
         </button>
 
         <div className="flex items-center gap-3 my-4">
@@ -92,26 +111,35 @@ function Home() {
           <div className="flex-1 h-px bg-[color:var(--color-border)]" />
         </div>
 
-        <label className="block text-sm font-medium mb-1">Join with code</label>
+        <label htmlFor="room-code" className="block text-sm font-medium mb-1">
+          Join with code
+        </label>
         <div className="flex gap-2">
           <input
+            id="room-code"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="ABCDE"
-            maxLength={5}
-            className="flex-1 rounded-[var(--radius)] bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-4 py-2.5 tracking-[0.3em] uppercase font-mono focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleJoin();
+            }}
+            placeholder="ABC234"
+            maxLength={6}
+            className="flex-1 min-w-0 rounded-[var(--radius)] bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-4 py-2.5 tracking-[0.3em] uppercase font-mono focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
           />
           <button
             onClick={handleJoin}
             disabled={loading !== null}
-            className="btn-ghost hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
+            className="btn-ghost btn-press hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
           >
-            {loading === "join" ? "…" : "Join"}
+            {loading === "join" ? "Joining…" : "Join"}
           </button>
         </div>
 
         {error && (
-          <p className="mt-4 text-sm text-[color:var(--color-destructive-foreground)] bg-[color:var(--color-destructive)] px-3 py-2 rounded-[var(--radius-md)]">
+          <p
+            role="alert"
+            className="mt-4 text-sm text-[color:var(--color-destructive-foreground)] bg-[color:var(--color-destructive)] px-3 py-2 rounded-[var(--radius-md)] anim-rise"
+          >
             {error}
           </p>
         )}

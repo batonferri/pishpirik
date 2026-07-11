@@ -156,3 +156,153 @@
     var(--color-accent);
   border: 2px solid var(--color-gold);
 }
+
+@utility btn-press {
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease;
+}
+.btn-press:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+@utility turn-glow {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 22px oklch(0.82 0.16 85 / 0.4);
+}
+
+/* ---------- animations ---------- */
+
+@keyframes anim-rise-kf {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes anim-deal-kf {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.9) rotate(-4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+@keyframes anim-play-kf {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes anim-capture-kf {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6) translateY(-10px);
+  }
+}
+@keyframes anim-pishti-kf {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-6deg);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.15) rotate(2deg);
+  }
+  45% {
+    transform: scale(1) rotate(0deg);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+@keyframes anim-modal-kf {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes anim-pop-kf {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes anim-blink-kf {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@utility anim-rise {
+  animation: anim-rise-kf 0.25s ease-out both;
+}
+@utility anim-deal {
+  animation: anim-deal-kf 0.35s ease-out both;
+}
+@utility anim-play {
+  animation: anim-play-kf 0.3s ease-out both;
+}
+@utility anim-pishti {
+  animation: anim-pishti-kf 1.3s ease-in-out both;
+}
+@utility anim-modal {
+  animation: anim-modal-kf 0.25s ease-out both;
+}
+@utility anim-pop {
+  animation: anim-pop-kf 0.3s ease-out both;
+}
+@utility anim-blink {
+  animation: anim-blink-kf 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-deal,
+  .anim-play,
+  .anim-pishti,
+  .anim-modal,
+  .anim-pop,
+  .anim-blink {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
