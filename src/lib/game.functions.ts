@@ -172,7 +172,9 @@ function genCode(): string {
 // ---------- server functions ----------
 
 export const createRoomFn = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ host: playerSchema }).parse(d))
+  .inputValidator((d) =>
+    z.object({ host: playerSchema, isPublic: z.boolean().optional().default(false) }).parse(d),
+  )
   .handler(async ({ data }) => {
     try {
       const admin = await getAdmin();
@@ -187,7 +189,12 @@ export const createRoomFn = createServerFn({ method: "POST" })
         const code = genCode();
         const { data: row, error } = await admin
           .from("games")
-          .insert({ code, status: "waiting", state: toPublicState(priv) as never })
+          .insert({
+            code,
+            status: "waiting",
+            is_public: data.isPublic,
+            state: toPublicState(priv) as never,
+          })
           .select("id, code, status, version")
           .single();
         if (error) {
@@ -223,6 +230,49 @@ export const fetchRoomFn = createServerFn({ method: "GET" })
       throw encodeError(e);
     }
   });
+
+export interface PublicRoomListing {
+  code: string;
+  hostName: string;
+  createdAt: string; // ISO timestamp
+}
+
+/** Open public rooms still waiting for an opponent, newest first. */
+export const listPublicRoomsFn = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const admin = await getAdmin();
+    const { data: rows, error } = await admin
+      .from("games")
+      .select("code, created_at, state, game_secrets(host_seen)")
+      .eq("is_public", true)
+      .eq("status", "waiting")
+      .order("created_at", { ascending: false })
+      .limit(25);
+    if (error) throw new Error(error.message);
+
+    // Hide rooms whose host stopped heartbeating (closed the tab without leaving).
+    const liveCutoff = Date.now() - ABANDON_GRACE_MS;
+    const rooms: PublicRoomListing[] = [];
+    for (const row of rows ?? []) {
+      const secretRows = row.game_secrets as unknown as
+        | { host_seen: string | null }[]
+        | { host_seen: string | null }
+        | null;
+      const secret = Array.isArray(secretRows) ? secretRows[0] : secretRows;
+      const hostSeen = secret?.host_seen ? new Date(secret.host_seen).getTime() : 0;
+      if (hostSeen < liveCutoff) continue;
+      const state = row.state as unknown as { host?: { name?: string } };
+      rooms.push({
+        code: row.code,
+        hostName: state?.host?.name ?? "Player",
+        createdAt: row.created_at,
+      });
+    }
+    return { rooms };
+  } catch (e) {
+    throw encodeError(e);
+  }
+});
 
 /**
  * Join a room. If a valid seat token is supplied, this is a reconnect and the

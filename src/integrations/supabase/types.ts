@@ -13,6 +13,7 @@ export type Database = {
           code: string;
           created_at: string;
           id: string;
+          is_public: boolean;
           state: Json;
           status: string;
           updated_at: string;
@@ -22,6 +23,7 @@ export type Database = {
           code: string;
           created_at?: string;
           id?: string;
+          is_public?: boolean;
           state?: Json;
           status?: string;
           updated_at?: string;
@@ -31,6 +33,7 @@ export type Database = {
           code?: string;
           created_at?: string;
           id?: string;
+          is_public?: boolean;
           state?: Json;
           status?: string;
           updated_at?: string;

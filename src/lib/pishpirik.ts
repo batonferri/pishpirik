@@ -1,20 +1,3 @@
-// Pishpirik game engine (1v1)
-// Rules used:
-//  - 52-card deck. Deal 4 to each player, 4 face-down to table with top card face up.
-//  - If the first face-up table card is a Jack, it stays on the pile and captures nothing
-//    (its capture value is credited to whoever eventually captures the pile).
-//  - On your turn, play 1 card. It captures the pile if:
-//      * the card is a Jack, OR
-//      * the card matches the rank of the top pile card.
-//  - Pishpirik: capturing when the pile has EXACTLY one card = +10 bonus points.
-//    Jack captures Jack (pile is a single Jack) = +20 bonus points.
-//  - When both hands run out, deal 4 more to each from the deck. Repeat until deck empty.
-//  - Whoever captured last takes any leftover pile at the end.
-//  - Scoring at end of match:
-//      * Ace = 1, Jack = 1, 2 of Clubs = 2, 10 of Diamonds = 3
-//      * Most cards captured = +3 (tie: no bonus)
-//      * Plus pishpirik bonuses accumulated during play
-
 export type Suit = "S" | "H" | "D" | "C";
 export type Rank = "A" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K";
 
