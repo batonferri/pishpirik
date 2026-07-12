@@ -9,22 +9,16 @@ import {
   setRoomToken,
 } from "@/lib/game-client";
 import { createRoomFn, joinRoomFn, listPublicRoomsFn } from "@/lib/game.functions";
+import { useI18n } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
-function timeAgo(iso: string): string {
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}min ago`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
-}
-
 function Home() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -43,6 +37,15 @@ function Home() {
     refetchInterval: 10_000,
   });
 
+  const timeAgo = (iso: string): string => {
+    const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    if (seconds < 60) return t("justNow");
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return t("minutesAgo", { m: minutes });
+    const hours = Math.floor(minutes / 60);
+    return t("hoursAgo", { h: hours });
+  };
+
   const persistName = (nickname?: string) => {
     const p = getLocalPlayer();
     const next = { ...p, name: (nickname ?? name).trim() || "Player" };
@@ -60,7 +63,7 @@ function Home() {
       setRoomToken(room.code, token);
       navigate({ to: "/game/$code", params: { code: room.code } });
     } catch (e) {
-      setError(friendlyError(e, "Failed to create room"));
+      setError(friendlyError(e, t("failedCreateRoom")));
       setLoading(null);
     }
   };
@@ -69,7 +72,7 @@ function Home() {
     setError(null);
     const trimmed = joinCode.trim().toUpperCase();
     if (!trimmed) {
-      setError("Enter a room code");
+      setError(t("enterRoomCode"));
       return;
     }
     setLoading("join");
@@ -82,7 +85,7 @@ function Home() {
       setRoomToken(room.code, token);
       navigate({ to: "/game/$code", params: { code: room.code } });
     } catch (e) {
-      setError(friendlyError(e, "Failed to join room"));
+      setError(friendlyError(e, t("failedJoinRoom")));
       setLoading(null);
       setJoinPrompt(null);
       publicRooms.refetch();
@@ -93,6 +96,9 @@ function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="fixed top-4 right-4 z-30">
+        <LanguageToggle />
+      </div>
       <div className="w-full max-w-4xl flex flex-col lg:flex-row lg:items-start items-center justify-center gap-6">
         <div className="w-full max-w-md panel p-8 anim-rise">
           <div className="text-center mb-8">
@@ -103,26 +109,26 @@ function Home() {
               Pishpirik
             </h1>
             <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-              The classic card game. Play 1v1 online.
+              {t("tagline")}
             </p>
           </div>
 
           <label htmlFor="nickname" className="block text-sm font-medium mb-1">
-            Your nickname
+            {t("yourNickname")}
           </label>
           <input
             id="nickname"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Aidar"
+            placeholder={t("nicknamePlaceholder")}
             maxLength={20}
             className="w-full rounded-[var(--radius)] bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-4 py-2.5 mb-5 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
           />
 
-          <span className="block text-sm font-medium mb-1">Room visibility</span>
+          <span className="block text-sm font-medium mb-1">{t("roomVisibility")}</span>
           <div
             role="radiogroup"
-            aria-label="Room visibility"
+            aria-label={t("roomVisibility")}
             className="grid grid-cols-2 gap-2 mb-5"
           >
             <button
@@ -136,9 +142,9 @@ function Home() {
                   : "border-[color:var(--color-border)] bg-[color:var(--color-input)] opacity-70 hover:opacity-100"
               }`}
             >
-              <span className="block text-sm font-semibold">Private</span>
+              <span className="block text-sm font-semibold">{t("privateLabel")}</span>
               <span className="block text-xs text-[color:var(--color-muted-foreground)]">
-                Invite with code only
+                {t("privateDesc")}
               </span>
             </button>
             <button
@@ -152,9 +158,9 @@ function Home() {
                   : "border-[color:var(--color-border)] bg-[color:var(--color-input)] opacity-70 hover:opacity-100"
               }`}
             >
-              <span className="block text-sm font-semibold">Public</span>
+              <span className="block text-sm font-semibold">{t("publicLabel")}</span>
               <span className="block text-xs text-[color:var(--color-muted-foreground)]">
-                Anyone can join from the lobby
+                {t("publicDesc")}
               </span>
             </button>
           </div>
@@ -165,20 +171,22 @@ function Home() {
             className="btn-primary btn-press w-full mb-3 hover:btn-primary-hover disabled:opacity-60"
           >
             {loading === "create"
-              ? "Creating room…"
-              : `Create ${isPublic ? "public" : "private"} room`}
+              ? t("creatingRoom")
+              : isPublic
+                ? t("createPublicRoom")
+                : t("createPrivateRoom")}
           </button>
 
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-[color:var(--color-border)]" />
             <span className="text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)]">
-              or
+              {t("or")}
             </span>
             <div className="flex-1 h-px bg-[color:var(--color-border)]" />
           </div>
 
           <label htmlFor="room-code" className="block text-sm font-medium mb-1">
-            Join with code
+            {t("joinWithCode")}
           </label>
           <div className="flex gap-2">
             <input
@@ -197,7 +205,7 @@ function Home() {
               disabled={loading !== null}
               className="btn-ghost btn-press hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
             >
-              {loading === "join" ? "Joining…" : "Join"}
+              {loading === "join" ? t("joining") : t("join")}
             </button>
           </div>
 
@@ -213,30 +221,30 @@ function Home() {
 
         <div className="w-full max-w-md lg:max-w-sm panel p-6 anim-rise">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[color:var(--color-gold)]">Public rooms</h2>
+            <h2 className="text-lg font-semibold text-[color:var(--color-gold)]">
+              {t("publicRooms")}
+            </h2>
             <button
               onClick={() => publicRooms.refetch()}
               disabled={publicRooms.isFetching}
-              aria-label="Refresh public rooms"
+              aria-label={t("refreshPublicRooms")}
               className="btn-ghost btn-press text-xs px-2.5 py-1.5 hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
             >
-              {publicRooms.isFetching ? "Refreshing…" : "Refresh"}
+              {publicRooms.isFetching ? t("refreshing") : t("refresh")}
             </button>
           </div>
 
           {rooms.length === 0 ? (
             <p className="text-sm text-[color:var(--color-muted-foreground)] py-6 text-center">
-              {publicRooms.isPending
-                ? "Loading rooms…"
-                : "No open public rooms right now. Create one!"}
+              {publicRooms.isPending ? t("loadingRooms") : t("noPublicRooms")}
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-[color:var(--color-muted-foreground)]">
-                  <th className="pb-2 font-medium">Code</th>
-                  <th className="pb-2 font-medium">Host</th>
-                  <th className="pb-2 font-medium">Created</th>
+                  <th className="pb-2 font-medium">{t("codeCol")}</th>
+                  <th className="pb-2 font-medium">{t("hostCol")}</th>
+                  <th className="pb-2 font-medium">{t("createdCol")}</th>
                   <th className="pb-2" />
                 </tr>
               </thead>
@@ -256,7 +264,7 @@ function Home() {
                         disabled={loading !== null}
                         className="btn-ghost btn-press text-xs px-3 py-1.5 hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
                       >
-                        Join
+                        {t("join")}
                       </button>
                     </td>
                   </tr>
@@ -296,6 +304,7 @@ function JoinNamePrompt({
   onJoin: (name: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(defaultName);
   return (
     <div
@@ -315,13 +324,13 @@ function JoinNamePrompt({
           id="join-prompt-title"
           className="text-2xl font-bold mb-1 text-[color:var(--color-gold)]"
         >
-          Join {hostName}&apos;s game
+          {t("joinHostsGame", { host: hostName })}
         </h2>
         <p className="text-sm text-[color:var(--color-muted-foreground)] mb-6">
-          Room <span className="font-mono font-bold tracking-widest">{code}</span>
+          {t("room")} <span className="font-mono font-bold tracking-widest">{code}</span>
         </p>
         <label htmlFor="join-name" className="block text-left text-sm font-medium mb-1">
-          Your nickname
+          {t("yourNickname")}
         </label>
         <input
           id="join-name"
@@ -332,7 +341,7 @@ function JoinNamePrompt({
             if (e.key === "Enter" && name.trim() && !pending) onJoin(name);
             if (e.key === "Escape" && !pending) onCancel();
           }}
-          placeholder="e.g. Aidar"
+          placeholder={t("nicknamePlaceholder")}
           maxLength={20}
           className="w-full rounded-[var(--radius)] bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
         />
@@ -341,14 +350,14 @@ function JoinNamePrompt({
           disabled={pending || !name.trim()}
           className="btn-primary btn-press w-full mb-2 hover:btn-primary-hover disabled:opacity-60"
         >
-          {pending ? "Joining…" : "Take a seat"}
+          {pending ? t("joining") : t("takeASeat")}
         </button>
         <button
           onClick={onCancel}
           disabled={pending}
           className="btn-ghost btn-press w-full hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
         >
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     </div>

@@ -29,6 +29,8 @@ import {
   type PublicRoom,
 } from "@/lib/room-engine";
 import { PlayingCard } from "@/components/PlayingCard";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { translate, useI18n } from "@/lib/i18n";
 import type { Card } from "@/lib/pishpirik";
 
 export const Route = createFileRoute("/game/$code")({
@@ -48,6 +50,7 @@ function GameRoom() {
   const { code: rawCode } = Route.useParams();
   const code = rawCode.toUpperCase();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [player, setPlayer] = useState(() =>
     typeof window !== "undefined" ? getLocalPlayer() : { id: "", name: "" },
@@ -96,8 +99,8 @@ function GameRoom() {
       if (mySeat !== null && next.state.startingTurn !== null) {
         setStarterBanner(
           next.state.startingTurn === mySeat
-            ? "You start!"
-            : `${g.players[next.state.startingTurn].name} starts`,
+            ? translate("youStart")
+            : translate("oppStarts", { name: g.players[next.state.startingTurn].name }),
         );
         window.setTimeout(() => setStarterBanner(null), 2600);
       }
@@ -154,8 +157,10 @@ function GameRoom() {
           if (r.state.game && r.state.game.status === "playing" && !r.state.game.lastAction) {
             setStarterBanner(
               r.state.startingTurn === v.playerIdx
-                ? "You start!"
-                : `${r.state.game.players[r.state.startingTurn ?? 0].name} starts`,
+                ? translate("youStart")
+                : translate("oppStarts", {
+                    name: r.state.game.players[r.state.startingTurn ?? 0].name,
+                  }),
             );
             window.setTimeout(() => setStarterBanner(null), 2600);
           }
@@ -174,10 +179,10 @@ function GameRoom() {
               const r = await fetchRoomFn({ data: { code } });
               if (!cancelled) acceptRoom(r);
             } catch (e2) {
-              if (!cancelled) setFatal(friendlyError(e2, "Failed to load room"));
+              if (!cancelled) setFatal(friendlyError(e2, translate("failedLoadRoom")));
             }
           } else {
-            setFatal(friendlyError(e, "Failed to load room"));
+            setFatal(friendlyError(e, translate("failedLoadRoom")));
           }
         }
       }
@@ -211,7 +216,7 @@ function GameRoom() {
         acceptRoom(r);
         await refreshView();
       } catch (e) {
-        showToast(friendlyError(e, "Failed to join room"));
+        showToast(friendlyError(e, translate("failedJoinRoom")));
       } finally {
         joiningRef.current = false;
         setPending(false);
@@ -347,7 +352,7 @@ function GameRoom() {
         acceptRoom(r);
         setView(v);
       } catch (e) {
-        showToast(friendlyError(e, "Move failed"));
+        showToast(friendlyError(e, translate("moveFailed")));
         refreshView();
       } finally {
         setPending(false);
@@ -366,7 +371,7 @@ function GameRoom() {
         acceptRoom(r);
         if (v) setView(v);
       } catch (e) {
-        showToast(friendlyError(e, "Rematch failed"));
+        showToast(friendlyError(e, translate("rematchFailed")));
         refreshView();
       } finally {
         setPending(false);
@@ -378,7 +383,7 @@ function GameRoom() {
   const handleLeave = useCallback(async () => {
     const token = tokenRef.current;
     if (token && playing) {
-      const ok = window.confirm("Leaving now forfeits the game. Leave anyway?");
+      const ok = window.confirm(translate("leaveForfeit"));
       if (!ok) return;
     }
     if (token) {
@@ -399,7 +404,7 @@ function GameRoom() {
         <div className="panel p-8 anim-rise">
           <p className="text-lg mb-4">{fatal}</p>
           <Link to="/" className="btn-primary btn-press hover:btn-primary-hover">
-            Back home
+            {t("backHome")}
           </Link>
         </div>
       </Centered>
@@ -409,7 +414,7 @@ function GameRoom() {
     return (
       <Centered>
         <div className="text-[color:var(--color-muted-foreground)] anim-blink">
-          Connecting to room…
+          {t("connectingToRoom")}
         </div>
       </Centered>
     );
@@ -431,12 +436,12 @@ function GameRoom() {
     return (
       <Centered>
         <div className="panel p-8 max-w-md anim-rise">
-          <h2 className="text-xl font-bold mb-2">Room is full</h2>
+          <h2 className="text-xl font-bold mb-2">{t("roomFull")}</h2>
           <p className="text-sm text-[color:var(--color-muted-foreground)] mb-6">
-            This room already has two players. Ask your friend for a new room code.
+            {t("roomFullDesc")}
           </p>
           <Link to="/" className="btn-primary btn-press hover:btn-primary-hover">
-            Back home
+            {t("backHome")}
           </Link>
         </div>
       </Centered>
@@ -499,18 +504,19 @@ function JoinPrompt({
   pending: boolean;
   onJoin: (name: string) => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(defaultName);
   return (
     <Centered>
       <div className="panel p-8 max-w-md w-full anim-rise">
         <h2 className="text-2xl font-bold mb-1 text-[color:var(--color-gold)]">
-          Join {hostName}&apos;s game
+          {t("joinHostsGame", { host: hostName })}
         </h2>
         <p className="text-sm text-[color:var(--color-muted-foreground)] mb-6">
-          Room <span className="font-mono font-bold tracking-widest">{code}</span>
+          {t("room")} <span className="font-mono font-bold tracking-widest">{code}</span>
         </p>
         <label htmlFor="join-name" className="block text-left text-sm font-medium mb-1">
-          Your nickname
+          {t("yourNickname")}
         </label>
         <input
           id="join-name"
@@ -519,7 +525,7 @@ function JoinPrompt({
           onKeyDown={(e) => {
             if (e.key === "Enter" && name.trim()) onJoin(name);
           }}
-          placeholder="e.g. Aidar"
+          placeholder={t("nicknamePlaceholder")}
           maxLength={20}
           className="w-full rounded-[var(--radius)] bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
         />
@@ -528,7 +534,7 @@ function JoinPrompt({
           disabled={pending || !name.trim()}
           className="btn-primary btn-press w-full hover:btn-primary-hover disabled:opacity-60"
         >
-          {pending ? "Joining…" : "Take a seat"}
+          {pending ? t("joining") : t("takeASeat")}
         </button>
       </div>
     </Centered>
@@ -546,17 +552,21 @@ function WaitingRoom({
   onLeave: () => void;
   loadingHand: boolean;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <Centered>
+      <div className="fixed top-4 right-4 z-30">
+        <LanguageToggle />
+      </div>
       <div className="panel p-8 text-center max-w-md w-full anim-rise">
         <h2 className="text-2xl font-bold mb-2 text-[color:var(--color-gold)]">
-          {loadingHand ? "Dealing cards…" : "Waiting for opponent"}
+          {loadingHand ? t("dealingCards") : t("waitingForOpponent")}
         </h2>
         {!loadingHand && (
           <>
             <p className="text-sm text-[color:var(--color-muted-foreground)] mb-6">
-              Share this code with a friend:
+              {t("shareCode")}
             </p>
             <div className="text-4xl sm:text-5xl font-mono tracking-[0.35em] font-bold mb-3 select-all">
               {code}
@@ -569,11 +579,11 @@ function WaitingRoom({
               }}
               className="btn-ghost btn-press text-sm hover:bg-[color:var(--color-secondary)]"
             >
-              {copied ? "Link copied!" : "Copy invite link"}
+              {copied ? t("linkCopied") : t("copyInviteLink")}
             </button>
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[color:var(--color-muted-foreground)]">
               <ConnDot conn={conn} />
-              <span className="anim-blink">Waiting…</span>
+              <span className="anim-blink">{t("waiting")}</span>
             </div>
           </>
         )}
@@ -581,7 +591,7 @@ function WaitingRoom({
           onClick={onLeave}
           className="mt-6 text-sm text-[color:var(--color-muted-foreground)] hover:underline"
         >
-          Close room
+          {t("closeRoom")}
         </button>
       </div>
     </Centered>
@@ -642,6 +652,7 @@ function Table(props: TableProps) {
     onPlay,
     onLeave,
   } = props;
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const me = game.players[seat];
@@ -657,7 +668,9 @@ function Table(props: TableProps) {
       {/* Top bar */}
       <div className="flex items-center justify-between panel px-3 sm:px-4 py-2 text-sm gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="text-[color:var(--color-muted-foreground)] hidden sm:inline">Room</span>
+          <span className="text-[color:var(--color-muted-foreground)] hidden sm:inline">
+            {t("room")}
+          </span>
           <span className="font-mono tracking-widest text-[color:var(--color-gold)] font-bold">
             {code}
           </span>
@@ -669,31 +682,30 @@ function Table(props: TableProps) {
             }}
             className="text-xs text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] btn-press border border-[color:var(--color-border)] rounded-full px-2.5 py-1"
           >
-            {copied ? "Copied!" : "Copy invite"}
+            {copied ? t("copied") : t("copyInvite")}
           </button>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="flex items-center gap-1.5 text-xs text-[color:var(--color-muted-foreground)]">
             <ConnDot conn={conn} />
             <span className="hidden sm:inline">
-              {conn === "online" ? "Connected" : conn === "reconnecting" ? "Reconnecting…" : "…"}
+              {conn === "online" ? t("connected") : conn === "reconnecting" ? t("reconnecting") : "…"}
             </span>
           </span>
+          <LanguageToggle />
           <button
             onClick={onLeave}
             className="text-[color:var(--color-muted-foreground)] hover:underline"
           >
-            Leave
+            {t("leave")}
           </button>
         </div>
       </div>
 
       {/* Status banners */}
-      {conn === "reconnecting" && <Banner tone="warn">Connection lost — reconnecting…</Banner>}
+      {conn === "reconnecting" && <Banner tone="warn">{t("connectionLost")}</Banner>}
       {oppDisconnected && (
-        <Banner tone="warn">
-          {opp.name} disconnected — waiting for them to reconnect ({graceLeft}s)
-        </Banner>
+        <Banner tone="warn">{t("oppDisconnected", { name: opp.name, s: graceLeft })}</Banner>
       )}
 
       {/* Opponent */}
@@ -713,7 +725,7 @@ function Table(props: TableProps) {
         <div className="flex items-center gap-5 sm:gap-8">
           <div className="text-center">
             <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-1">
-              Deck
+              {t("deck")}
             </div>
             {game.deckCount > 0 ? (
               <div className="relative">
@@ -729,7 +741,7 @@ function Table(props: TableProps) {
 
           <div className="text-center">
             <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-1">
-              Pile ({game.pile.length})
+              {t("pileCount", { n: game.pile.length })}
             </div>
             <div className="relative w-24 h-24 sm:h-32 flex items-center justify-center">
               {game.pile.length === 0 ? (
@@ -758,14 +770,14 @@ function Table(props: TableProps) {
         <div className="text-sm text-[color:var(--color-muted-foreground)] h-6 text-center">
           {last && (
             <span key={`la-${version}`} className="anim-rise inline-block">
-              {last.playerIdx === seat ? "You" : opp.name} played{" "}
+              {last.playerIdx === seat ? t("youPlayed") : t("oppPlayed", { name: opp.name })}{" "}
               <b className="text-[color:var(--color-foreground)]">
                 {last.card.r}
                 {suitGlyph(last.card.s)}
               </b>
               {last.captured && (
                 <span className="text-[color:var(--color-gold)] font-semibold anim-pop inline-block ml-1">
-                  captured the pile!
+                  {t("capturedPile")}
                 </span>
               )}
             </span>
@@ -781,7 +793,7 @@ function Table(props: TableProps) {
                 : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
             }`}
           >
-            {myTurn ? "Your turn" : `${opp.name}'s turn`}
+            {myTurn ? t("yourTurn") : t("oppTurn", { name: opp.name })}
           </div>
         )}
 
@@ -803,7 +815,7 @@ function Table(props: TableProps) {
               </div>
               <div className="text-xl sm:text-2xl font-bold mt-1">
                 {pishtiFlash.mine ? "+" : `${opp.name} +`}
-                {pishtiFlash.points} points
+                {pishtiFlash.points} {t("points")}
               </div>
             </div>
           </div>
@@ -829,13 +841,19 @@ function Table(props: TableProps) {
                   : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
             }`}
           >
-            {finished ? "Game over" : myTurn ? (pending ? "Playing…" : "Your turn") : "Waiting…"}
+            {finished
+              ? t("gameOver")
+              : myTurn
+                ? pending
+                  ? t("playingNow")
+                  : t("yourTurn")
+                : t("waiting")}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 justify-center min-h-[6rem]">
           {view.hand.length === 0 && (
             <span className="text-[color:var(--color-muted-foreground)] self-center text-sm">
-              (no cards in hand)
+              {t("noCardsInHand")}
             </span>
           )}
           {view.hand.map((c, i) => (
@@ -902,12 +920,13 @@ function ScoreChips({
   capturedCount: number;
   pishtiPoints: number;
 }) {
+  const { t } = useI18n();
   return (
     <span className="text-xs text-[color:var(--color-muted-foreground)] whitespace-nowrap">
       <span key={`c-${capturedCount}`} className="anim-pop inline-block">
         {capturedCount}
       </span>{" "}
-      captured
+      {t("capturedChip")}
       {pishtiPoints > 0 && (
         <>
           {" · "}
@@ -941,6 +960,7 @@ function PlayerPanel({
   opponent?: boolean;
   gameNo: number;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={`panel p-3 flex items-center justify-between gap-2 transition-shadow duration-300 ${
@@ -954,7 +974,7 @@ function PlayerPanel({
             {name}
             {!online && (
               <span className="text-[10px] uppercase tracking-wide text-amber-400 anim-blink">
-                offline
+                {t("offline")}
               </span>
             )}
           </div>
@@ -973,7 +993,7 @@ function PlayerPanel({
         </div>
         {isTurn && (
           <span className="text-xs font-bold text-[color:var(--color-gold)] uppercase tracking-widest anim-rise">
-            Turn
+            {t("turn")}
           </span>
         )}
       </div>
@@ -999,6 +1019,7 @@ function Banner({ tone, children }: { tone: "warn" | "info"; children: React.Rea
 
 function EndModal(props: TableProps) {
   const { game, seat, rematch, endReason, myId, now, pending, onRematch, onLeave } = props;
+  const { t } = useI18n();
   const opp = game.players[seat === 0 ? 1 : 0];
   const won = game.winner === "tie" ? "tie" : game.winner === seat ? "won" : "lost";
   const byForfeit = endReason === "forfeit" || endReason === "abandoned";
@@ -1016,15 +1037,15 @@ function EndModal(props: TableProps) {
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="panel p-5 sm:p-6 max-w-lg w-full anim-modal max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-1 text-[color:var(--color-gold)]">
-          {won === "won" ? "You won!" : won === "lost" ? "You lost" : "It's a tie"}
+          {won === "won" ? t("youWon") : won === "lost" ? t("youLost") : t("itsATie")}
         </h2>
         {byForfeit && (
           <p className="text-center text-sm text-[color:var(--color-muted-foreground)] mb-3">
             {endReason === "abandoned"
-              ? `${opp.name} didn't reconnect in time.`
+              ? t("oppNoReconnect", { name: opp.name })
               : won === "won"
-                ? `${opp.name} left the game.`
-                : "You left the game."}
+                ? t("oppLeftGame", { name: opp.name })
+                : t("youLeftGame")}
           </p>
         )}
 
@@ -1032,7 +1053,7 @@ function EndModal(props: TableProps) {
           <table className="w-full text-sm my-4">
             <thead>
               <tr className="text-[color:var(--color-muted-foreground)]">
-                <th className="text-left font-medium pb-1">Scoring</th>
+                <th className="text-left font-medium pb-1">{t("scoring")}</th>
                 <th className={`pb-1 ${seat === 0 ? "text-[color:var(--color-gold)]" : ""}`}>
                   {game.players[0].name}
                 </th>
@@ -1042,17 +1063,17 @@ function EndModal(props: TableProps) {
               </tr>
             </thead>
             <tbody>
-              <ScoreRow label="Aces" a={b[0].aces} bv={b[1].aces} />
-              <ScoreRow label="Jacks" a={b[0].jacks} bv={b[1].jacks} />
-              <ScoreRow label="2 of Clubs" a={b[0].twoOfClubs} bv={b[1].twoOfClubs} />
-              <ScoreRow label="10 of Diamonds" a={b[0].tenOfDiamonds} bv={b[1].tenOfDiamonds} />
-              <ScoreRow label="Queens" a={b[0].queens} bv={b[1].queens} />
-              <ScoreRow label="Kings" a={b[0].kings} bv={b[1].kings} />
-              <ScoreRow label="Tens" a={b[0].tens} bv={b[1].tens} />
-              <ScoreRow label="Most cards (+3)" a={b[0].mostCards} bv={b[1].mostCards} />
-              <ScoreRow label="Pishpirik bonuses" a={b[0].pishti} bv={b[1].pishti} />
+              <ScoreRow label={t("aces")} a={b[0].aces} bv={b[1].aces} />
+              <ScoreRow label={t("jacks")} a={b[0].jacks} bv={b[1].jacks} />
+              <ScoreRow label={t("twoOfClubs")} a={b[0].twoOfClubs} bv={b[1].twoOfClubs} />
+              <ScoreRow label={t("tenOfDiamonds")} a={b[0].tenOfDiamonds} bv={b[1].tenOfDiamonds} />
+              <ScoreRow label={t("queens")} a={b[0].queens} bv={b[1].queens} />
+              <ScoreRow label={t("kings")} a={b[0].kings} bv={b[1].kings} />
+              <ScoreRow label={t("tens")} a={b[0].tens} bv={b[1].tens} />
+              <ScoreRow label={t("mostCards")} a={b[0].mostCards} bv={b[1].mostCards} />
+              <ScoreRow label={t("pishtiBonuses")} a={b[0].pishti} bv={b[1].pishti} />
               <tr className="font-bold border-t border-[color:var(--color-border)]">
-                <td className="pt-2">Total</td>
+                <td className="pt-2">{t("total")}</td>
                 <td className="text-center pt-2">{b[0].total}</td>
                 <td className="text-center pt-2">{b[1].total}</td>
               </tr>
@@ -1064,36 +1085,39 @@ function EndModal(props: TableProps) {
         <div className="mt-4 space-y-2">
           {byForfeit ? (
             <p className="text-center text-sm text-[color:var(--color-muted-foreground)]">
-              Rematch isn&apos;t available — your opponent left.
+              {t("rematchUnavailable")}
             </p>
           ) : iRequested && !requestExpired ? (
             <div className="text-center">
               <div className="btn-ghost w-full opacity-80 cursor-default">
-                Waiting for {opp.name}… <span className="anim-blink inline-block">●</span>
+                {t("waitingForName", { name: opp.name })}{" "}
+                <span className="anim-blink inline-block">●</span>
               </div>
               {expiresIn !== null && (
                 <p className="text-xs text-[color:var(--color-muted-foreground)] mt-1.5">
-                  Request expires in {expiresIn}s
+                  {t("requestExpires", { s: expiresIn })}
                 </p>
               )}
             </div>
           ) : oppRequested && !requestExpired ? (
             <div className="anim-rise">
-              <p className="text-center text-sm font-semibold mb-2">{opp.name} wants a rematch!</p>
+              <p className="text-center text-sm font-semibold mb-2">
+                {t("wantsRematch", { name: opp.name })}
+              </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => onRematch("accept")}
                   disabled={pending}
                   className="btn-primary btn-press flex-1 hover:btn-primary-hover disabled:opacity-60"
                 >
-                  Accept
+                  {t("accept")}
                 </button>
                 <button
                   onClick={() => onRematch("decline")}
                   disabled={pending}
                   className="btn-ghost btn-press flex-1 hover:bg-[color:var(--color-secondary)] disabled:opacity-60"
                 >
-                  Decline
+                  {t("decline")}
                 </button>
               </div>
             </div>
@@ -1101,12 +1125,14 @@ function EndModal(props: TableProps) {
             <>
               {rematch.status === "declined" && (
                 <p className="text-center text-sm text-[color:var(--color-muted-foreground)] anim-rise">
-                  {rematch.declinedBy === myId ? "You" : opp.name} declined the rematch.
+                  {rematch.declinedBy === myId
+                    ? t("youDeclinedRematch")
+                    : t("oppDeclinedRematch", { name: opp.name })}
                 </p>
               )}
               {requestExpired && (
                 <p className="text-center text-sm text-[color:var(--color-muted-foreground)]">
-                  The rematch request expired.
+                  {t("rematchExpired")}
                 </p>
               )}
               <button
@@ -1114,7 +1140,7 @@ function EndModal(props: TableProps) {
                 disabled={pending}
                 className="btn-primary btn-press w-full hover:btn-primary-hover disabled:opacity-60"
               >
-                {pending ? "Sending…" : "Play again"}
+                {pending ? t("sending") : t("playAgain")}
               </button>
             </>
           )}
@@ -1122,7 +1148,7 @@ function EndModal(props: TableProps) {
             onClick={onLeave}
             className="btn-ghost btn-press w-full hover:bg-[color:var(--color-secondary)]"
           >
-            Leave room
+            {t("leaveRoom")}
           </button>
         </div>
       </div>
