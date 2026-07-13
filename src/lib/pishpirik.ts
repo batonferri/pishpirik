@@ -12,6 +12,8 @@ export interface PlayerState {
   hand: Card[];
   captured: Card[];
   pishtiPoints: number; // 10 per single-card capture, 20 for Jack-on-Jack
+  /** Cards won through pishpirik captures (optional for states saved before this field existed). */
+  pishtiCards?: Card[];
 }
 
 export interface GameState {
@@ -86,8 +88,22 @@ export function newGame(
 ): GameState {
   const deck = shuffle(freshDeck());
   const players: [PlayerState, PlayerState] = [
-    { id: p0.id, name: p0.name, hand: deck.splice(0, 4), captured: [], pishtiPoints: 0 },
-    { id: p1.id, name: p1.name, hand: deck.splice(0, 4), captured: [], pishtiPoints: 0 },
+    {
+      id: p0.id,
+      name: p0.name,
+      hand: deck.splice(0, 4),
+      captured: [],
+      pishtiPoints: 0,
+      pishtiCards: [],
+    },
+    {
+      id: p1.id,
+      name: p1.name,
+      hand: deck.splice(0, 4),
+      captured: [],
+      pishtiPoints: 0,
+      pishtiCards: [],
+    },
   ];
   const pile = deck.splice(0, 4);
   return {
@@ -137,6 +153,9 @@ export function playCard(state: GameState, playerIdx: 0 | 1, cardIdx: number): G
       else if (matches) {
         me.pishtiPoints += 10;
         pishti = true;
+      }
+      if (pishti) {
+        me.pishtiCards = [...(me.pishtiCards ?? []), top, card];
       }
     }
 
@@ -232,4 +251,12 @@ function finalize(s: GameState) {
 
 export function cardLabel(c: Card): string {
   return `${c.r}${c.s}`;
+}
+
+/** Points a single captured card is worth at scoring time (0 for plain cards). */
+export function cardPoints(c: Card): number {
+  if (c.r === "10" && c.s === "D") return 2;
+  if (c.r === "A" || c.r === "J" || c.r === "Q" || c.r === "K" || c.r === "10") return 1;
+  if (c.r === "2" && c.s === "C") return 1;
+  return 0;
 }

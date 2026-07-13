@@ -31,7 +31,7 @@ import {
 import { PlayingCard } from "@/components/PlayingCard";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { translate, useI18n } from "@/lib/i18n";
-import type { Card } from "@/lib/pishpirik";
+import { cardEq, cardPoints, type Card } from "@/lib/pishpirik";
 
 export const Route = createFileRoute("/game/$code")({
   head: ({ params }) => ({
@@ -663,6 +663,23 @@ function Table(props: TableProps) {
   const oppDisconnected = !finished && !oppOnline;
   const graceLeft = Math.max(0, Math.ceil((ABANDON_GRACE_MS - oppGoneMs) / 1000));
 
+  // Hold the end-game modal back briefly so the final play (and a possible
+  // pishpirik flash) stays visible. If we arrive into an already-finished
+  // game (reconnect) or it ended by forfeit, show it right away.
+  const [showEndModal, setShowEndModal] = useState(finished);
+  useEffect(() => {
+    if (!finished) {
+      setShowEndModal(false);
+      return;
+    }
+    if (props.endReason !== "score") {
+      setShowEndModal(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowEndModal(true), 1000);
+    return () => window.clearTimeout(timer);
+  }, [finished, props.endReason]);
+
   return (
     <div className="min-h-screen flex flex-col p-3 sm:p-4 md:p-6 gap-3 md:gap-4 max-w-5xl mx-auto w-full">
       {/* Top bar */}
@@ -689,7 +706,11 @@ function Table(props: TableProps) {
           <span className="flex items-center gap-1.5 text-xs text-[color:var(--color-muted-foreground)]">
             <ConnDot conn={conn} />
             <span className="hidden sm:inline">
-              {conn === "online" ? t("connected") : conn === "reconnecting" ? t("reconnecting") : "…"}
+              {conn === "online"
+                ? t("connected")
+                : conn === "reconnecting"
+                  ? t("reconnecting")
+                  : "…"}
             </span>
           </span>
           <LanguageToggle />
@@ -880,7 +901,7 @@ function Table(props: TableProps) {
       )}
 
       {/* End-game modal */}
-      {finished && <EndModal {...props} />}
+      {finished && showEndModal && <EndModal {...props} />}
     </div>
   );
 }
@@ -1024,6 +1045,7 @@ function EndModal(props: TableProps) {
   const won = game.winner === "tie" ? "tie" : game.winner === seat ? "won" : "lost";
   const byForfeit = endReason === "forfeit" || endReason === "abandoned";
   const b = game.scores?.breakdown;
+  const [showDetails, setShowDetails] = useState(false);
 
   const iRequested = rematch.status === "requested" && rematch.requestedBy === myId;
   const oppRequested = rematch.status === "requested" && rematch.requestedBy !== myId;
@@ -1050,36 +1072,88 @@ function EndModal(props: TableProps) {
         )}
 
         {b && (
-          <table className="w-full text-sm my-4">
-            <thead>
-              <tr className="text-[color:var(--color-muted-foreground)]">
-                <th className="text-left font-medium pb-1">{t("scoring")}</th>
-                <th className={`pb-1 ${seat === 0 ? "text-[color:var(--color-gold)]" : ""}`}>
-                  {game.players[0].name}
-                </th>
-                <th className={`pb-1 ${seat === 1 ? "text-[color:var(--color-gold)]" : ""}`}>
-                  {game.players[1].name}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <ScoreRow label={t("aces")} a={b[0].aces} bv={b[1].aces} />
-              <ScoreRow label={t("jacks")} a={b[0].jacks} bv={b[1].jacks} />
-              <ScoreRow label={t("twoOfClubs")} a={b[0].twoOfClubs} bv={b[1].twoOfClubs} />
-              <ScoreRow label={t("tenOfDiamonds")} a={b[0].tenOfDiamonds} bv={b[1].tenOfDiamonds} />
-              <ScoreRow label={t("queens")} a={b[0].queens} bv={b[1].queens} />
-              <ScoreRow label={t("kings")} a={b[0].kings} bv={b[1].kings} />
-              <ScoreRow label={t("tens")} a={b[0].tens} bv={b[1].tens} />
-              <ScoreRow label={t("mostCards")} a={b[0].mostCards} bv={b[1].mostCards} />
-              <ScoreRow label={t("pishtiBonuses")} a={b[0].pishti} bv={b[1].pishti} />
-              <tr className="font-bold border-t border-[color:var(--color-border)]">
-                <td className="pt-2">{t("total")}</td>
-                <td className="text-center pt-2">{b[0].total}</td>
-                <td className="text-center pt-2">{b[1].total}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="my-4">
+            {/* Big totals */}
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              {([0, 1] as const).map((idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-[var(--radius)] border px-3 py-3 text-center ${
+                    idx === 1 ? "order-3" : ""
+                  } ${
+                    game.winner === idx
+                      ? "border-[color:var(--color-gold)] bg-[color:var(--color-gold)]/10"
+                      : "border-[color:var(--color-border)] bg-[color:var(--color-secondary)]/40"
+                  }`}
+                >
+                  <div
+                    className={`text-xs font-semibold truncate mb-1 ${
+                      idx === seat
+                        ? "text-[color:var(--color-gold)]"
+                        : "text-[color:var(--color-muted-foreground)]"
+                    }`}
+                  >
+                    {game.players[idx].name}
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black tabular-nums leading-none">
+                    {b[idx].total}
+                  </div>
+                </div>
+              ))}
+              <div className="order-2 text-sm font-bold text-[color:var(--color-muted-foreground)]">
+                :
+              </div>
+            </div>
+
+            {/* Collapsible breakdown */}
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              aria-expanded={showDetails}
+              className="mt-2 w-full text-center text-xs font-medium text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] btn-press py-1.5"
+            >
+              {showDetails ? t("hideDetails") : t("showDetails")}{" "}
+              <span
+                className={`inline-block transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`}
+                aria-hidden
+              >
+                ▾
+              </span>
+            </button>
+            {showDetails && (
+              <table className="w-full text-sm mt-1 anim-rise">
+                <thead>
+                  <tr className="text-[color:var(--color-muted-foreground)]">
+                    <th className="text-left font-medium pb-1">{t("scoring")}</th>
+                    <th className={`pb-1 ${seat === 0 ? "text-[color:var(--color-gold)]" : ""}`}>
+                      {game.players[0].name}
+                    </th>
+                    <th className={`pb-1 ${seat === 1 ? "text-[color:var(--color-gold)]" : ""}`}>
+                      {game.players[1].name}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ScoreRow label={t("aces")} a={b[0].aces} bv={b[1].aces} />
+                  <ScoreRow label={t("jacks")} a={b[0].jacks} bv={b[1].jacks} />
+                  <ScoreRow label={t("twoOfClubs")} a={b[0].twoOfClubs} bv={b[1].twoOfClubs} />
+                  <ScoreRow
+                    label={t("tenOfDiamonds")}
+                    a={b[0].tenOfDiamonds}
+                    bv={b[1].tenOfDiamonds}
+                  />
+                  <ScoreRow label={t("queens")} a={b[0].queens} bv={b[1].queens} />
+                  <ScoreRow label={t("kings")} a={b[0].kings} bv={b[1].kings} />
+                  <ScoreRow label={t("tens")} a={b[0].tens} bv={b[1].tens} />
+                  <ScoreRow label={t("mostCards")} a={b[0].mostCards} bv={b[1].mostCards} />
+                  <ScoreRow label={t("pishtiBonuses")} a={b[0].pishti} bv={b[1].pishti} />
+                </tbody>
+              </table>
+            )}
+          </div>
         )}
+
+        <CapturedCardsSection game={game} seat={seat} />
 
         {/* Rematch area */}
         <div className="mt-4 space-y-2">
@@ -1152,6 +1226,92 @@ function EndModal(props: TableProps) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const POINT_GLOW = "ring-2 ring-sky-400 shadow-[0_0_10px_2px_rgba(56,189,248,0.55)]";
+const PISHTI_GLOW =
+  "ring-2 ring-[color:var(--color-gold)] shadow-[0_0_12px_2px_rgba(230,190,90,0.6)]";
+
+/** Everyone's captured cards, revealed at game end. Point cards glow blue, pishpirik wins glow gold. */
+function CapturedCardsSection({ game, seat }: { game: PublicGameState; seat: 0 | 1 }) {
+  const { t } = useI18n();
+  if (!game.players.some((p) => p.captured?.length)) return null;
+
+  const hasPoints = game.players.some((p) => p.captured?.some((c) => cardPoints(c) > 0));
+  const hasPishti = game.players.some((p) => p.pishtiCards?.length);
+
+  return (
+    <div className="my-4">
+      <h3 className="text-sm font-medium text-[color:var(--color-muted-foreground)] mb-2">
+        {t("capturedCards")}
+      </h3>
+      {(hasPoints || hasPishti) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[color:var(--color-muted-foreground)] mb-3">
+          {hasPoints && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]" />
+              {t("legendPointCards")}
+            </span>
+          )}
+          {hasPishti && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[color:var(--color-gold)] shadow-[0_0_6px_rgba(230,190,90,0.8)]" />
+              {t("legendPishtiCards")}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="space-y-4">
+        {([seat, seat === 0 ? 1 : 0] as const).map((idx) => (
+          <PlayerCapturedCards key={idx} player={game.players[idx]} highlighted={idx === seat} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlayerCapturedCards({
+  player,
+  highlighted,
+}: {
+  player: PublicGameState["players"][0];
+  highlighted: boolean;
+}) {
+  const { t } = useI18n();
+  const captured = player.captured ?? [];
+  const pishtiCards = player.pishtiCards ?? [];
+  const isPishti = (c: Card) => pishtiCards.some((p) => cardEq(p, c));
+
+  // Gold (pishpirik) first, then blue (point cards), then the rest.
+  const sorted = captured.slice().sort((a, b) => {
+    const rank = (c: Card) => (isPishti(c) ? 0 : cardPoints(c) > 0 ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+
+  return (
+    <div>
+      <div className="text-sm font-semibold mb-1.5 flex items-center gap-2">
+        <span className={highlighted ? "text-[color:var(--color-gold)]" : ""}>{player.name}</span>
+        <span className="text-xs font-normal text-[color:var(--color-muted-foreground)]">
+          {captured.length} {t("capturedChip")}
+        </span>
+      </div>
+      {captured.length === 0 ? (
+        <p className="text-xs text-[color:var(--color-muted-foreground)]">—</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5 p-0.5">
+          {sorted.map((c) => (
+            <PlayingCard
+              key={`${c.r}${c.s}`}
+              card={c}
+              size="xs"
+              className={isPishti(c) ? PISHTI_GLOW : cardPoints(c) > 0 ? POINT_GLOW : "opacity-75"}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

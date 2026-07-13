@@ -86,6 +86,10 @@ export interface PublicPlayerInfo {
   handCount: number;
   capturedCount: number;
   pishtiPoints: number;
+  /** Only revealed once the game is finished. */
+  captured?: Card[];
+  /** Cards won through pishpirik captures — only revealed once the game is finished. */
+  pishtiCards?: Card[];
 }
 
 export interface PublicGameState {
@@ -339,13 +343,15 @@ export function forfeitGame(
 
 // ---------- sanitization ----------
 
-function publicPlayer(p: GameState["players"][0]): PublicPlayerInfo {
+function publicPlayer(p: GameState["players"][0], revealCaptured: boolean): PublicPlayerInfo {
   return {
     id: p.id,
     name: p.name,
     handCount: p.hand.length,
     capturedCount: p.captured.length,
     pishtiPoints: p.pishtiPoints,
+    captured: revealCaptured ? p.captured : undefined,
+    pishtiCards: revealCaptured ? (p.pishtiCards ?? []) : undefined,
   };
 }
 
@@ -366,7 +372,10 @@ export function toPublicState(priv: PrivateRoomState): PublicRoomState {
       ? {
           deckCount: g.deck.length,
           pile: g.pile,
-          players: [publicPlayer(g.players[0]), publicPlayer(g.players[1])],
+          players: [
+            publicPlayer(g.players[0], g.status === "finished"),
+            publicPlayer(g.players[1], g.status === "finished"),
+          ],
           turn: g.turn,
           status: g.status === "finished" ? "finished" : "playing",
           winner: g.winner,

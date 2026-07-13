@@ -12,7 +12,7 @@ const RED: Card["s"][] = ["H", "D"];
 interface Props {
   card?: Card;
   faceDown?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   onClick?: () => void;
   disabled?: boolean;
   highlight?: boolean;
@@ -35,7 +35,9 @@ export function PlayingCard({
       ? "w-16 h-24 text-xl sm:w-20 sm:h-30 sm:text-2xl md:w-24 md:h-36 md:text-3xl"
       : size === "sm"
         ? "w-10 h-14 text-xs sm:w-12 sm:h-16 sm:text-sm"
-        : "w-14 h-20 text-lg sm:w-16 sm:h-24 sm:text-xl";
+        : size === "xs"
+          ? "w-8 h-11 text-[10px] sm:w-9 sm:h-13 sm:text-[11px]"
+          : "w-14 h-20 text-lg sm:w-16 sm:h-24 sm:text-xl";
 
   if (faceDown || !card) {
     return <div className={`card-back ${dims} ${className}`} style={style} aria-hidden />;
@@ -51,7 +53,7 @@ export function PlayingCard({
       onClick={onClick}
       disabled={!clickable}
       aria-label={`${card.r} of ${SUIT_NAME[card.s]}`}
-      className={`playing-card ${dims} flex flex-col justify-between p-1.5 select-none touch-manipulation ${
+      className={`playing-card ${dims} flex flex-col justify-between ${size === "xs" ? "p-1" : "p-1.5"} select-none touch-manipulation ${
         clickable
           ? "cursor-pointer transition-transform duration-150 hover:-translate-y-3 focus-visible:-translate-y-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] active:scale-95"
           : "cursor-default"
@@ -64,7 +66,9 @@ export function PlayingCard({
         <span>{card.r}</span>
         <span className="text-[0.7em]">{glyph}</span>
       </div>
-      <div className="text-center text-[1.4em] leading-none opacity-90">{glyph}</div>
+      {size !== "xs" && (
+        <div className="text-center text-[1.4em] leading-none opacity-90">{glyph}</div>
+      )}
       <div className="flex flex-col items-end leading-none font-bold rotate-180">
         <span>{card.r}</span>
         <span className="text-[0.7em]">{glyph}</span>
