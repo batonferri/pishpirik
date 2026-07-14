@@ -26,6 +26,7 @@ import {
   type PublicRoom,
 } from "./room-engine";
 import type { Card, Rank, Suit } from "./pishpirik";
+import { createId } from "./game-client";
 
 // ---------- schemas ----------
 
@@ -183,7 +184,7 @@ export const createRoomFn = createServerFn({ method: "POST" })
       const cutoff = new Date(Date.now() - ROOM_TTL_HOURS * 3600_000).toISOString();
       await admin.from("games").delete().lt("updated_at", cutoff);
 
-      const hostToken = crypto.randomUUID();
+      const hostToken = createId();
       const priv = createPrivateRoom(data.host, hostToken);
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = genCode();
@@ -302,7 +303,7 @@ export const joinRoomFn = createServerFn({ method: "POST" })
         }
       }
 
-      const guestToken = crypto.randomUUID();
+      const guestToken = createId();
       const { room } = await withRoom(data.code, (r) => seatGuest(r.priv, data.guest, guestToken));
       const admin = await getAdmin();
       await admin

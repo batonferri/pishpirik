@@ -10,6 +10,14 @@ export interface Player {
   name: string;
 }
 
+export const createId = () => {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 const PLAYER_KEY = "pishpirik.player";
 const TOKEN_KEY_PREFIX = "pishpirik.token.";
 
@@ -24,7 +32,7 @@ export function getLocalPlayer(): Player {
       // corrupted — regenerate below
     }
   }
-  const p = { id: crypto.randomUUID(), name: "" };
+  const p = { id: createId(), name: "" };
   localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
   return p;
 }
