@@ -259,6 +259,20 @@
     transform: scale(1);
   }
 }
+@keyframes anim-bubble-kf {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(6px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.04) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
 @keyframes anim-blink-kf {
   0%,
   100% {
@@ -290,6 +304,9 @@
 @utility anim-blink {
   animation: anim-blink-kf 1.6s ease-in-out infinite;
 }
+@utility anim-bubble {
+  animation: anim-bubble-kf 0.22s ease-out both;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .anim-rise,
@@ -298,7 +315,8 @@
   .anim-pishti,
   .anim-modal,
   .anim-pop,
-  .anim-blink {
+  .anim-blink,
+  .anim-bubble {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }

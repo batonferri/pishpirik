@@ -91,6 +91,17 @@ const en = {
   offline: "offline",
   turn: "Turn",
 
+  // Chat
+  chat: "Chat",
+  chatPlaceholder: "Type a message…",
+  send: "Send",
+  "chat.goodLuck": "Good luck!",
+  "chat.goodGame": "Good game!",
+  "chat.thatWasLucky": "That was lucky!",
+  "chat.niceMove": "Nice move!",
+  "chat.soClose": "So close!",
+  "chat.hurryUp": "Hurry up!",
+
   // End-game modal
   youWon: "You won!",
   youLost: "You lost",
@@ -233,6 +244,17 @@ const sq: Record<TranslationKey, string> = {
   capturedChip: "të marra",
   offline: "offline",
   turn: "Radha",
+
+  // Chat
+  chat: "Chat",
+  chatPlaceholder: "Shkruaj një mesazh…",
+  send: "Dërgo",
+  "chat.goodLuck": "Suksese!",
+  "chat.goodGame": "Lojë e mirë!",
+  "chat.thatWasLucky": "Ajo ishte fat!",
+  "chat.niceMove": "Lëvizje e bukur!",
+  "chat.soClose": "Sa afër!",
+  "chat.hurryUp": "Nxito pak!",
 
   // End-game modal
   youWon: "Fitove!",

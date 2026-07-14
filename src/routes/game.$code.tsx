@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import {
   clearRoomToken,
@@ -30,8 +31,9 @@ import {
 } from "@/lib/room-engine";
 import { PlayingCard } from "@/components/PlayingCard";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { translate, useI18n } from "@/lib/i18n";
+import { translate, useI18n, type TranslationKey } from "@/lib/i18n";
 import { cardEq, cardPoints, type Card } from "@/lib/pishpirik";
+import { MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/game/$code")({
   head: ({ params }) => ({
@@ -45,6 +47,38 @@ export const Route = createFileRoute("/game/$code")({
 });
 
 type ConnStatus = "connecting" | "online" | "reconnecting";
+
+// ---------- chat ----------
+
+const CHAT_PRESETS = [
+  "chat.goodLuck",
+  "chat.goodGame",
+  "chat.thatWasLucky",
+  "chat.niceMove",
+  "chat.soClose",
+  "chat.hurryUp",
+] as const satisfies readonly TranslationKey[];
+type ChatPreset = (typeof CHAT_PRESETS)[number];
+
+const MAX_CHAT_LEN = 100;
+const CHAT_BUBBLE_MS = 4500;
+const CHAT_COOLDOWN_MS = 600;
+
+/** Sent over the realtime channel. Presets travel as keys so each side sees its own language. */
+interface ChatPayload {
+  from: string;
+  preset?: ChatPreset;
+  text?: string;
+}
+
+interface ChatBubbleState {
+  id: number;
+  text: string;
+}
+
+function isChatPreset(v: unknown): v is ChatPreset {
+  return typeof v === "string" && (CHAT_PRESETS as readonly string[]).includes(v);
+}
 
 function GameRoom() {
   const { code: rawCode } = Route.useParams();
@@ -66,6 +100,8 @@ function GameRoom() {
   const [now, setNow] = useState(() => Date.now());
   const [pishtiFlash, setPishtiFlash] = useState<{ points: number; mine: boolean } | null>(null);
   const [starterBanner, setStarterBanner] = useState<string | null>(null);
+  const [myBubble, setMyBubble] = useState<ChatBubbleState | null>(null);
+  const [oppBubble, setOppBubble] = useState<ChatBubbleState | null>(null);
 
   const versionRef = useRef(-1);
   const tokenRef = useRef<string | null>(null);
@@ -76,6 +112,10 @@ function GameRoom() {
   const oppOfflineSinceRef = useRef<number | null>(null);
   const claimingRef = useRef(false);
   const joiningRef = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const bubbleSeqRef = useRef(0);
+  const bubbleTimersRef = useRef<{ mine: number; opp: number }>({ mine: 0, opp: 0 });
+  const lastChatAtRef = useRef(0);
 
   seatRef.current = seat;
   viewRef.current = view;
@@ -84,6 +124,35 @@ function GameRoom() {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3000);
   }, []);
+
+  const showBubble = useCallback((mine: boolean, text: string) => {
+    const set = mine ? setMyBubble : setOppBubble;
+    set({ id: ++bubbleSeqRef.current, text });
+    const timers = bubbleTimersRef.current;
+    const key = mine ? "mine" : "opp";
+    window.clearTimeout(timers[key]);
+    timers[key] = window.setTimeout(() => set(null), CHAT_BUBBLE_MS);
+  }, []);
+
+  const sendChat = useCallback(
+    (msg: { text?: string; preset?: ChatPreset }) => {
+      const channel = channelRef.current;
+      if (!channel) return;
+      const now = Date.now();
+      if (now - lastChatAtRef.current < CHAT_COOLDOWN_MS) return;
+      const text = msg.preset
+        ? translate(msg.preset)
+        : (msg.text ?? "").trim().slice(0, MAX_CHAT_LEN);
+      if (!text) return;
+      lastChatAtRef.current = now;
+      const payload: ChatPayload = msg.preset
+        ? { from: player.id, preset: msg.preset }
+        : { from: player.id, text };
+      channel.send({ type: "broadcast", event: "chat", payload }).catch(() => {});
+      showBubble(true, text);
+    },
+    [player.id, showBubble],
+  );
 
   /** Accept a room snapshot only if it is newer than what we already have. */
   const acceptRoom = useCallback((next: PublicRoom) => {
@@ -262,6 +331,17 @@ function GameRoom() {
     channel.on("presence", { event: "sync" }, () => {
       setPresentIds(Object.keys(channel.presenceState()));
     });
+    channel.on("broadcast", { event: "chat" }, ({ payload }) => {
+      const msg = payload as Partial<ChatPayload> | undefined;
+      if (!msg || msg.from === player.id) return;
+      const text = isChatPreset(msg.preset)
+        ? translate(msg.preset)
+        : typeof msg.text === "string"
+          ? msg.text.trim().slice(0, MAX_CHAT_LEN)
+          : "";
+      if (text) showBubble(false, text);
+    });
+    channelRef.current = channel;
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         setConn("online");
@@ -273,9 +353,10 @@ function GameRoom() {
       }
     });
     return () => {
+      if (channelRef.current === channel) channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [code, player.id, acceptRoom, refreshView]);
+  }, [code, player.id, acceptRoom, refreshView, showBubble]);
 
   // ---------- heartbeat ----------
   useEffect(() => {
@@ -449,8 +530,26 @@ function GameRoom() {
   }
 
   if (room.status === "waiting" || !game || !view) {
+    const meName = seat === 0 ? room.state.host.name : (room.state.guest?.name ?? player.name);
+    const oppInLobby =
+      seat !== null && room.state.guest
+        ? seat === 0
+          ? room.state.guest
+          : room.state.host
+        : null;
     return (
-      <WaitingRoom code={code} conn={conn} onLeave={handleLeave} loadingHand={!view && !!game} />
+      <WaitingRoom
+        code={code}
+        conn={conn}
+        onLeave={handleLeave}
+        loadingHand={!view && !!game}
+        meName={meName}
+        opp={oppInLobby}
+        oppOnline={!!oppInLobby && presentIds.includes(oppInLobby.id)}
+        myBubble={myBubble}
+        oppBubble={oppBubble}
+        onChat={sendChat}
+      />
     );
   }
 
@@ -474,9 +573,12 @@ function GameRoom() {
       now={now}
       myId={player.id}
       version={room.version}
+      myBubble={myBubble}
+      oppBubble={oppBubble}
       onPlay={handlePlay}
       onRematch={handleRematch}
       onLeave={handleLeave}
+      onChat={sendChat}
     />
   );
 }
@@ -546,11 +648,23 @@ function WaitingRoom({
   conn,
   onLeave,
   loadingHand,
+  meName,
+  opp,
+  oppOnline,
+  myBubble,
+  oppBubble,
+  onChat,
 }: {
   code: string;
   conn: ConnStatus;
   onLeave: () => void;
   loadingHand: boolean;
+  meName: string;
+  opp: { id: string; name: string } | null;
+  oppOnline: boolean;
+  myBubble: ChatBubbleState | null;
+  oppBubble: ChatBubbleState | null;
+  onChat: (msg: { text?: string; preset?: ChatPreset }) => void;
 }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -559,6 +673,24 @@ function WaitingRoom({
       <div className="fixed top-4 right-4 z-30">
         <LanguageToggle />
       </div>
+      {opp && (
+        <div className="fixed top-4 left-4 right-16 z-30 max-w-md mx-auto panel px-3 py-2 flex items-center justify-between gap-2 anim-rise">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="relative shrink-0">
+              <Avatar name={opp.name} online={oppOnline} />
+              {oppBubble && <ChatBubble key={oppBubble.id} text={oppBubble.text} below />}
+            </span>
+            <span className="font-semibold truncate text-sm">{opp.name}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="relative shrink-0">
+              <Avatar name={meName} online />
+              {myBubble && <ChatBubble key={myBubble.id} text={myBubble.text} />}
+            </span>
+            <ChatControl onChat={onChat} />
+          </div>
+        </div>
+      )}
       <div className="panel p-8 text-center max-w-md w-full anim-rise">
         <h2 className="text-2xl font-bold mb-2 text-[color:var(--color-gold)]">
           {loadingHand ? t("dealingCards") : t("waitingForOpponent")}
@@ -629,9 +761,12 @@ interface TableProps {
   now: number;
   myId: string;
   version: number;
+  myBubble: ChatBubbleState | null;
+  oppBubble: ChatBubbleState | null;
   onPlay: (card: Card) => void;
   onRematch: (action: "request" | "accept" | "decline") => void;
   onLeave: () => void;
+  onChat: (msg: { text?: string; preset?: ChatPreset }) => void;
 }
 
 function Table(props: TableProps) {
@@ -649,8 +784,11 @@ function Table(props: TableProps) {
     pishtiFlash,
     starterBanner,
     version,
+    myBubble,
+    oppBubble,
     onPlay,
     onLeave,
+    onChat,
   } = props;
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -739,6 +877,7 @@ function Table(props: TableProps) {
         online={oppOnline}
         opponent
         gameNo={gameNo}
+        bubble={oppBubble}
       />
 
       {/* Center table */}
@@ -849,26 +988,32 @@ function Table(props: TableProps) {
       >
         <div className="flex items-center justify-between mb-3 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Avatar name={me.name} online />
+            <span className="relative shrink-0">
+              <Avatar name={me.name} online />
+              {myBubble && <ChatBubble key={myBubble.id} text={myBubble.text} />}
+            </span>
             <span className="font-semibold truncate">{me.name}</span>
             <ScoreChips capturedCount={me.capturedCount} pishtiPoints={me.pishtiPoints} />
           </div>
-          <div
-            className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full shrink-0 ${
-              finished
-                ? "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
+          <div className="flex items-center gap-2 shrink-0">
+            <ChatControl onChat={onChat} />
+            <div
+              className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full shrink-0 ${
+                finished
+                  ? "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
+                  : myTurn
+                    ? "bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)]"
+                    : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
+              }`}
+            >
+              {finished
+                ? t("gameOver")
                 : myTurn
-                  ? "bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)]"
-                  : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
-            }`}
-          >
-            {finished
-              ? t("gameOver")
-              : myTurn
-                ? pending
-                  ? t("playingNow")
-                  : t("yourTurn")
-                : t("waiting")}
+                  ? pending
+                    ? t("playingNow")
+                    : t("yourTurn")
+                  : t("waiting")}
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 justify-center min-h-[6rem]">
@@ -934,6 +1079,118 @@ function Avatar({ name, online }: { name: string; online: boolean }) {
   );
 }
 
+/** Speech bubble anchored to an avatar. Points down at the avatar by default; `below` flips it. */
+function ChatBubble({ text, below }: { text: string; below?: boolean }) {
+  return (
+    <span
+      className={`absolute left-1/2 z-30 pointer-events-none anim-bubble ${
+        below ? "top-full mt-2.5" : "bottom-full mb-2.5"
+      }`}
+    >
+      <span
+        className={`relative block -translate-x-4 w-max max-w-[min(240px,60vw)] bg-[color:var(--color-card)] text-[color:var(--color-card-foreground)] text-sm font-medium px-3 py-1.5 rounded-xl shadow-lg break-words ${
+          below ? "rounded-tl-sm" : "rounded-bl-sm"
+        }`}
+      >
+        {text}
+        <span
+          className={`absolute left-2.5 w-2.5 h-2.5 bg-[color:var(--color-card)] rotate-45 ${
+            below ? "-top-1" : "-bottom-1"
+          }`}
+          aria-hidden
+        />
+      </span>
+    </span>
+  );
+}
+
+function ChatControl({ onChat }: { onChat: TableProps["onChat"] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const submitText = () => {
+    if (!text.trim()) return;
+    onChat({ text });
+    setText("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={t("chat")}
+        aria-expanded={open}
+        className={`btn-press rounded-full border border-[color:var(--color-border)] p-1.5 sm:p-2 transition-colors ${
+          open
+            ? "bg-[color:var(--color-secondary)] text-[color:var(--color-foreground)]"
+            : "text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] hover:bg-[color:var(--color-secondary)]"
+        }`}
+      >
+        <MessageCircle className="w-4 h-4" aria-hidden />
+      </button>
+      {open && (
+        <div className="absolute bottom-full right-0 mb-2 z-40 panel p-3 w-72 anim-rise">
+          <div className="flex flex-wrap gap-1.5 mb-2.5">
+            {CHAT_PRESETS.map((key) => (
+              <button
+                key={key}
+                onClick={() => {
+                  onChat({ preset: key });
+                  setOpen(false);
+                }}
+                className="btn-press text-xs border border-[color:var(--color-border)] rounded-full px-2.5 py-1 hover:bg-[color:var(--color-secondary)] transition-colors"
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitText();
+              }}
+              placeholder={t("chatPlaceholder")}
+              maxLength={MAX_CHAT_LEN}
+              className="flex-1 min-w-0 rounded-full bg-[color:var(--color-input)] border border-[color:var(--color-border)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-ring)]"
+            />
+            <button
+              onClick={submitText}
+              disabled={!text.trim()}
+              className="btn-press text-sm font-semibold rounded-full px-3 py-1.5 bg-[color:var(--color-primary)] text-[color:var(--color-primary-foreground)] disabled:opacity-50"
+            >
+              {t("send")}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreChips({
   capturedCount,
   pishtiPoints,
@@ -971,6 +1228,7 @@ function PlayerPanel({
   isTurn,
   online,
   gameNo,
+  bubble,
 }: {
   name: string;
   capturedCount: number;
@@ -980,6 +1238,7 @@ function PlayerPanel({
   online: boolean;
   opponent?: boolean;
   gameNo: number;
+  bubble?: ChatBubbleState | null;
 }) {
   const { t } = useI18n();
   return (
@@ -989,7 +1248,10 @@ function PlayerPanel({
       }`}
     >
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <Avatar name={name} online={online} />
+        <span className="relative shrink-0">
+          <Avatar name={name} online={online} />
+          {bubble && <ChatBubble key={bubble.id} text={bubble.text} below />}
+        </span>
         <div className="min-w-0">
           <div className="font-semibold truncate flex items-center gap-2">
             {name}
