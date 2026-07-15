@@ -3,12 +3,17 @@
 // game.functions.ts — the browser never writes to the database directly.
 
 import { decodeErrorCode, type GameErrorCode } from "./room-engine";
+import {
+  readRoomToken,
+  readStoredPlayer,
+  removeRoomToken,
+  writeRoomToken,
+  writeStoredPlayer,
+  type Player,
+} from "./browser-storage";
 import { translate } from "./i18n";
 
-export interface Player {
-  id: string;
-  name: string;
-}
+export type { Player };
 
 export const createId = () => {
   if (typeof crypto.randomUUID === "function") {
@@ -18,41 +23,31 @@ export const createId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-const PLAYER_KEY = "pishpirik.player";
-const TOKEN_KEY_PREFIX = "pishpirik.token.";
-
 export function getLocalPlayer(): Player {
   if (typeof window === "undefined") return { id: "", name: "" };
-  const raw = localStorage.getItem(PLAYER_KEY);
-  if (raw) {
-    try {
-      const p = JSON.parse(raw) as Player;
-      if (p && typeof p.id === "string" && p.id) return p;
-    } catch {
-      // corrupted — regenerate below
-    }
-  }
+  const stored = readStoredPlayer();
+  if (stored) return stored;
   const p = { id: createId(), name: "" };
-  localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
+  writeStoredPlayer(p);
   return p;
 }
 
 export function setLocalPlayer(p: Player) {
-  localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
+  writeStoredPlayer(p);
 }
 
 /** The seat token is the credential for a room; keep one per room code. */
 export function getRoomToken(code: string): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY_PREFIX + code.toUpperCase());
+  return readRoomToken(code);
 }
 
 export function setRoomToken(code: string, token: string) {
-  localStorage.setItem(TOKEN_KEY_PREFIX + code.toUpperCase(), token);
+  writeRoomToken(code, token);
 }
 
 export function clearRoomToken(code: string) {
-  localStorage.removeItem(TOKEN_KEY_PREFIX + code.toUpperCase());
+  removeRoomToken(code);
 }
 
 export function errorCodeOf(e: unknown): GameErrorCode | null {

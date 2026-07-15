@@ -2,7 +2,7 @@
 // reactive translations, and a module-level `translate` for non-component
 // code (error mappers, event callbacks).
 //
-// Language resolution order: saved preference (localStorage) → browser
+// Language resolution order: saved preference (validated app storage) → browser
 // language (sq* → Albanian) → timezone (Europe/Tirane → Albanian) → English.
 
 import {
@@ -14,10 +14,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { readStoredLang, writeStoredLang, type Lang } from "./browser-storage";
 
-export type Lang = "en" | "sq";
-
-const LANG_KEY = "pishpirik.lang";
+export type { Lang };
 
 const en = {
   // Home / lobby
@@ -145,6 +144,7 @@ const en = {
   pageDidntLoad: "This page didn't load",
   pageDidntLoadDesc: "Something went wrong on our end. You can try refreshing or head back home.",
   tryAgain: "Try again",
+  resetAppData: "Reset app data",
 
   // Errors
   somethingWentWrong: "Something went wrong",
@@ -299,6 +299,7 @@ const sq: Record<TranslationKey, string> = {
   pageDidntLoad: "Kjo faqe nuk u ngarkua",
   pageDidntLoadDesc: "Diçka shkoi keq nga ana jonë. Provo ta rifreskosh ose kthehu në fillim.",
   tryAgain: "Provo përsëri",
+  resetAppData: "Rivendos të dhënat e app-it",
 
   // Errors
   somethingWentWrong: "Diçka shkoi keq",
@@ -348,8 +349,8 @@ export function translate(key: TranslationKey, params?: Params): string {
 
 export function detectLang(): Lang {
   try {
-    const stored = localStorage.getItem(LANG_KEY);
-    if (stored === "en" || stored === "sq") return stored;
+    const stored = readStoredLang();
+    if (stored) return stored;
     const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
     if (langs.some((l) => l?.toLowerCase().startsWith("sq"))) return "sq";
     // Albania. (Kosovo shares Europe/Belgrade, so we can't key off it.)
@@ -389,7 +390,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     currentLang = next;
     setLangState(next);
     try {
-      localStorage.setItem(LANG_KEY, next);
+      writeStoredLang(next);
     } catch {
       // storage unavailable — the choice just won't persist
     }

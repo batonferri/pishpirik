@@ -7,9 +7,11 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
+import "@/lib/browser-bootstrap";
 import appCss from "../styles.css?url";
+import { runBrowserRecovery } from "@/lib/browser-bootstrap";
 import { LanguageProvider, useI18n } from "@/lib/i18n";
 
 function NotFoundComponent() {
@@ -54,6 +56,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             {t("tryAgain")}
+          </button>
+          <button
+            onClick={() => {
+              void runBrowserRecovery().then(() => window.location.reload());
+            }}
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            {t("resetAppData")}
           </button>
           <a
             href="/"
@@ -112,6 +122,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k="pishpirik.startupOk";if(sessionStorage.getItem(k))return;window.setTimeout(function(){if(document.documentElement.dataset.pishpirikReady==="1")return;var r=document.getElementById("pishpirik-startup-recovery");if(r)return;var d=document.createElement("div");d.id="pishpirik-startup-recovery";d.setAttribute("role","alert");d.style.cssText="position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:#0b0f14;color:#f5f5f5;padding:1.5rem;font:15px/1.5 system-ui,sans-serif";d.innerHTML='<div style="max-width:28rem;text-align:center"><h1 style="font-size:1.25rem;margin:0 0 0.5rem">Pishpirik didn\\'t start</h1><p style="color:#cbd5e1;margin:0 0 1rem">The page loaded but the app never finished starting. Try reloading or reset app data.</p><div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap"><button type="button" id="pishpirik-inline-reload" style="padding:0.5rem 1rem;border-radius:0.375rem;border:0;background:#eab308;color:#111;font:inherit;cursor:pointer">Reload</button></div></div>';document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)});document.getElementById("pishpirik-inline-reload")?.addEventListener("click",function(){location.reload()});},20000);}catch(e){}})();`,
+          }}
+        />
       </head>
       <body>
         <LanguageProvider>{children}</LanguageProvider>
@@ -123,6 +138,10 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    window.__pishpirikMarkStartupReady?.();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
