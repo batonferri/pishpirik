@@ -563,6 +563,7 @@ function GameRoom() {
       gameNo={room.state.gameNo}
       rematch={room.state.rematch!}
       endReason={room.state.endReason}
+      seriesWins={room.state.seriesWins ?? [0, 0]}
       startingTurn={room.state.startingTurn}
       oppOnline={oppOnline}
       oppGoneMs={oppGoneMs}
@@ -751,6 +752,7 @@ interface TableProps {
   gameNo: number;
   rematch: NonNullable<PublicRoom["state"]["rematch"]>;
   endReason: PublicRoom["state"]["endReason"];
+  seriesWins: [number, number];
   startingTurn: 0 | 1 | null;
   oppOnline: boolean;
   oppGoneMs: number;
@@ -777,6 +779,7 @@ function Table(props: TableProps) {
     view,
     seat,
     gameNo,
+    seriesWins,
     oppOnline,
     oppGoneMs,
     pending,
@@ -839,6 +842,7 @@ function Table(props: TableProps) {
           >
             {copied ? t("copied") : t("copyInvite")}
           </button>
+          <SeriesBadge wins={seriesWins} seat={seat} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="flex items-center gap-1.5 text-xs text-[color:var(--color-muted-foreground)]">
@@ -1220,6 +1224,26 @@ function ScoreChips({
   );
 }
 
+/** Series win count from the viewer's perspective: myWins–oppWins. */
+function SeriesBadge({ wins, seat }: { wins: [number, number]; seat: 0 | 1 }) {
+  const { t } = useI18n();
+  const mine = wins[seat];
+  const theirs = wins[seat === 0 ? 1 : 0];
+  return (
+    <span
+      className="text-xs sm:text-sm font-semibold tabular-nums whitespace-nowrap px-2.5 py-1 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-secondary)]/50"
+      title={t("series")}
+    >
+      <span className="text-[color:var(--color-muted-foreground)] font-medium mr-1.5 hidden sm:inline">
+        {t("series")}
+      </span>
+      <span key={`s-${mine}-${theirs}`} className="anim-pop inline-block text-[color:var(--color-gold)]">
+        {t("seriesScore", { a: mine, b: theirs })}
+      </span>
+    </span>
+  );
+}
+
 function PlayerPanel({
   name,
   capturedCount,
@@ -1301,13 +1325,16 @@ function Banner({ tone, children }: { tone: "warn" | "info"; children: React.Rea
 // ---------- end-game modal ----------
 
 function EndModal(props: TableProps) {
-  const { game, seat, rematch, endReason, myId, now, pending, onRematch, onLeave } = props;
+  const { game, seat, rematch, endReason, seriesWins, myId, now, pending, onRematch, onLeave } =
+    props;
   const { t } = useI18n();
   const opp = game.players[seat === 0 ? 1 : 0];
   const won = game.winner === "tie" ? "tie" : game.winner === seat ? "won" : "lost";
   const byForfeit = endReason === "forfeit" || endReason === "abandoned";
   const b = game.scores?.breakdown;
   const [showDetails, setShowDetails] = useState(false);
+  const mySeries = seriesWins[seat];
+  const oppSeries = seriesWins[seat === 0 ? 1 : 0];
 
   const iRequested = rematch.status === "requested" && rematch.requestedBy === myId;
   const oppRequested = rematch.status === "requested" && rematch.requestedBy !== myId;
@@ -1323,6 +1350,15 @@ function EndModal(props: TableProps) {
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-1 text-[color:var(--color-gold)]">
           {won === "won" ? t("youWon") : won === "lost" ? t("youLost") : t("itsATie")}
         </h2>
+        <p className="text-center text-sm text-[color:var(--color-muted-foreground)] mb-1">
+          {t("series")}{" "}
+          <span
+            key={`series-${mySeries}-${oppSeries}`}
+            className="anim-pop inline-block font-bold tabular-nums text-[color:var(--color-gold)]"
+          >
+            {t("seriesScore", { a: mySeries, b: oppSeries })}
+          </span>
+        </p>
         {byForfeit && (
           <p className="text-center text-sm text-[color:var(--color-muted-foreground)] mb-3">
             {endReason === "abandoned"

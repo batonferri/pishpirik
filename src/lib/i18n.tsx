@@ -89,6 +89,8 @@ const en = {
   capturedChip: "captured",
   offline: "offline",
   turn: "Turn",
+  series: "Series",
+  seriesScore: "{a}–{b}",
 
   // Chat
   chat: "Chat",
@@ -244,6 +246,8 @@ const sq: Record<TranslationKey, string> = {
   capturedChip: "të marra",
   offline: "offline",
   turn: "Radha",
+  series: "Seria",
+  seriesScore: "{a}–{b}",
 
   // Chat
   chat: "Chat",

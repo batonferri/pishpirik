@@ -78,6 +78,8 @@ export interface PrivateRoomState {
   startingTurn: 0 | 1 | null;
   rematch: RematchState;
   endReason: EndReason;
+  /** Wins by seat across rematched games in this room. Survives rematch. */
+  seriesWins: [number, number];
 }
 
 export interface PublicPlayerInfo {
@@ -111,6 +113,8 @@ export interface PublicRoomState {
   startingTurn: 0 | 1 | null;
   rematch: RematchState;
   endReason: EndReason;
+  /** Wins by seat across rematched games in this room. */
+  seriesWins: [number, number];
   game?: PublicGameState;
 }
 
@@ -144,6 +148,11 @@ export const idleRematch = (): RematchState => ({
   declinedBy: null,
 });
 
+/** Normalize series wins for rooms created before the field existed. */
+export function seriesWinsOf(priv: Pick<PrivateRoomState, "seriesWins">): [number, number] {
+  return priv.seriesWins ?? [0, 0];
+}
+
 // ---------- room lifecycle ----------
 
 export function createPrivateRoom(host: Player, hostToken: string): PrivateRoomState {
@@ -154,6 +163,7 @@ export function createPrivateRoom(host: Player, hostToken: string): PrivateRoomS
     startingTurn: null,
     rematch: idleRematch(),
     endReason: null,
+    seriesWins: [0, 0],
   };
 }
 
@@ -218,11 +228,20 @@ export function applyMove(
   const cardIdx = hand.findIndex((c) => cardEq(c, card));
   if (cardIdx < 0) throw new GameError("INVALID_CARD", "That card is not in your hand");
   const nextGame = playCard(priv.game, playerIdx, cardIdx);
+  const wins = seriesWinsOf(priv);
+  const seriesWins: [number, number] =
+    nextGame.status === "finished" && (nextGame.winner === 0 || nextGame.winner === 1)
+      ? [
+          wins[0] + (nextGame.winner === 0 ? 1 : 0),
+          wins[1] + (nextGame.winner === 1 ? 1 : 0),
+        ]
+      : wins;
   return {
     ...priv,
     game: nextGame,
     endReason: nextGame.status === "finished" ? "score" : priv.endReason,
     rematch: nextGame.status === "finished" ? idleRematch() : priv.rematch,
+    seriesWins,
   };
 }
 
@@ -318,6 +337,7 @@ export function startNextGame(priv: PrivateRoomState): PrivateRoomState {
     gameNo: priv.gameNo + 1,
     endReason: null,
     rematch: idleRematch(),
+    seriesWins: seriesWinsOf(priv),
     game: newGame(priv.host, priv.guest, nextStarter),
   };
 }
@@ -368,6 +388,7 @@ export function toPublicState(priv: PrivateRoomState): PublicRoomState {
     startingTurn: priv.startingTurn,
     rematch: priv.rematch,
     endReason: priv.endReason,
+    seriesWins: seriesWinsOf(priv),
     game: g
       ? {
           deckCount: g.deck.length,

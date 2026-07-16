@@ -30,16 +30,21 @@ function seatedRoom(rand: () => number = () => 0.1): PrivateRoomState {
 }
 
 /** Fast-forward a room to a finished-by-score game for rematch tests. */
-function finishedRoom(startingTurn: 0 | 1 = 0): PrivateRoomState {
+function finishedRoom(startingTurn: 0 | 1 = 0, winner: 0 | 1 = 0): PrivateRoomState {
   const priv = seatedRoom(startingTurn === 0 ? () => 0.1 : () => 0.9);
   return {
     ...priv,
     endReason: "score",
+    seriesWins: [winner === 0 ? 1 : 0, winner === 1 ? 1 : 0],
     game: {
       ...priv.game!,
       status: "finished",
-      winner: 0,
-      scores: { p0: 5, p1: 3, breakdown: [] as never },
+      winner,
+      scores: {
+        p0: winner === 0 ? 5 : 3,
+        p1: winner === 1 ? 5 : 3,
+        breakdown: [] as never,
+      },
     },
   };
 }
@@ -301,6 +306,77 @@ describe("starting player fairness", () => {
     expect(next.game!.lastCapturer).toBeNull();
     expect(next.rematch.status).toBe("idle");
     expect(next.endReason).toBeNull();
+  });
+
+  test("a rematch preserves series wins", () => {
+    const priv = finishedRoom(0, 0);
+    expect(priv.seriesWins).toEqual([1, 0]);
+    const next = startNextGame(priv);
+    expect(next.seriesWins).toEqual([1, 0]);
+    expect(toPublicState(next).seriesWins).toEqual([1, 0]);
+  });
+});
+
+describe("series wins", () => {
+  test("finishing by score increments the winner's series count", () => {
+    // Build a near-finished game: empty deck/hands so one play finalizes.
+    const priv = seatedRoom(() => 0.1);
+    const turn = priv.game!.turn;
+    const card = priv.game!.players[turn].hand[0];
+    const almostDone: PrivateRoomState = {
+      ...priv,
+      game: {
+        ...priv.game!,
+        deck: [],
+        pile: [],
+        lastCapturer: turn === 0 ? 1 : 0,
+        players: [
+          {
+            ...priv.game!.players[0],
+            hand: turn === 0 ? [card] : [],
+            captured: [{ r: "A", s: "S" }],
+          },
+          {
+            ...priv.game!.players[1],
+            hand: turn === 1 ? [card] : [],
+            captured: [],
+          },
+        ],
+      },
+    };
+    expect(almostDone.seriesWins).toEqual([0, 0]);
+    const next = applyMove(almostDone, turn, card, almostDone.gameNo);
+    expect(next.game!.status).toBe("finished");
+    expect(next.endReason).toBe("score");
+    if (next.game!.winner === 0) expect(next.seriesWins).toEqual([1, 0]);
+    else if (next.game!.winner === 1) expect(next.seriesWins).toEqual([0, 1]);
+    else expect(next.seriesWins).toEqual([0, 0]); // tie
+  });
+
+  test("forfeit does not increment series wins", () => {
+    const priv = seatedRoom();
+    const after = forfeitGame(priv, 1, "forfeit");
+    expect(after.seriesWins).toEqual([0, 0]);
+  });
+
+  test("series wins accumulate across rematches", () => {
+    let priv = finishedRoom(0, 0); // [1, 0]
+    priv = startNextGame(priv);
+    priv = {
+      ...priv,
+      endReason: "score",
+      seriesWins: [1, 1],
+      game: {
+        ...priv.game!,
+        status: "finished",
+        winner: 1,
+        scores: { p0: 2, p1: 8, breakdown: [] as never },
+      },
+    };
+    priv = startNextGame(priv);
+    expect(priv.seriesWins).toEqual([1, 1]);
+    const pub = toPublicState(priv);
+    expect(pub.seriesWins).toEqual([1, 1]);
   });
 });
 
