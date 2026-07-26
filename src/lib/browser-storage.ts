@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   schema: "pishpirik.storageSchema",
   player: "pishpirik.player",
   lang: "pishpirik.lang",
+  muted: "pishpirik.muted",
   tokenPrefix: "pishpirik.token.",
   diagnostics: "pishpirik.diagnostics",
 } as const;
@@ -147,6 +148,21 @@ export function readStoredLang(): Lang | null {
 
 export function writeStoredLang(lang: Lang): void {
   localStorage.setItem(STORAGE_KEYS.lang, lang);
+}
+
+export function readStoredMuted(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(STORAGE_KEYS.muted) === "1";
+}
+
+export function writeStoredMuted(muted: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    if (muted) localStorage.setItem(STORAGE_KEYS.muted, "1");
+    else localStorage.removeItem(STORAGE_KEYS.muted);
+  } catch {
+    // storage unavailable
+  }
 }
 
 export function readRoomToken(code: string): string | null {

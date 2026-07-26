@@ -171,6 +171,8 @@ const en = {
   "error.INVALID_ACTION": "That action isn't possible right now.",
 
   language: "Language",
+  soundOn: "Mute sounds",
+  soundOff: "Unmute sounds",
 };
 
 export type TranslationKey = keyof typeof en;
@@ -328,6 +330,8 @@ const sq: Record<TranslationKey, string> = {
   "error.INVALID_ACTION": "Ai veprim s'është i mundur tani.",
 
   language: "Gjuha",
+  soundOn: "Hesht zërat",
+  soundOff: "Aktivizo zërat",
 };
 
 const dictionaries: Record<Lang, Record<TranslationKey, string>> = { en, sq };

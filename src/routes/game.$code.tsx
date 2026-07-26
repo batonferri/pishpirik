@@ -31,8 +31,10 @@ import {
 } from "@/lib/room-engine";
 import { PlayingCard } from "@/components/PlayingCard";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SoundToggle } from "@/components/SoundToggle";
 import { translate, useI18n, type TranslationKey } from "@/lib/i18n";
 import { cardEq, cardPoints, type Card } from "@/lib/pishpirik";
+import { initSounds, playSound } from "@/lib/sounds";
 import { MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/game/$code")({
@@ -109,6 +111,9 @@ function GameRoom() {
   const viewRef = useRef<MyView | null>(null);
   const prevGameNoRef = useRef(0);
   const animatedVersionRef = useRef(-1);
+  const soundsPrimedRef = useRef(false);
+  const prevHandCountsRef = useRef<[number, number] | null>(null);
+  const prevStatusRef = useRef<PublicGameState["status"] | null>(null);
   const oppOfflineSinceRef = useRef<number | null>(null);
   const claimingRef = useRef(false);
   const joiningRef = useRef(false);
@@ -119,6 +124,10 @@ function GameRoom() {
 
   seatRef.current = seat;
   viewRef.current = view;
+
+  useEffect(() => {
+    initSounds();
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -150,6 +159,7 @@ function GameRoom() {
         : { from: player.id, text };
       channel.send({ type: "broadcast", event: "chat", payload }).catch(() => {});
       showBubble(true, text);
+      playSound("chat");
     },
     [player.id, showBubble],
   );
@@ -157,6 +167,7 @@ function GameRoom() {
   /** Accept a room snapshot only if it is newer than what we already have. */
   const acceptRoom = useCallback((next: PublicRoom) => {
     if (next.version <= versionRef.current) return;
+    const shouldSound = soundsPrimedRef.current;
     versionRef.current = next.version;
     setRoom(next);
 
@@ -173,16 +184,58 @@ function GameRoom() {
         );
         window.setTimeout(() => setStarterBanner(null), 2600);
       }
+      if (shouldSound) playSound("deal");
+    } else if (
+      shouldSound &&
+      g &&
+      g.status === "playing" &&
+      prevHandCountsRef.current &&
+      (g.players[0].handCount > prevHandCountsRef.current[0] ||
+        g.players[1].handCount > prevHandCountsRef.current[1])
+    ) {
+      // Mid-round redeal when both hands emptied.
+      playSound("deal");
     }
-    // Pishpirik celebration — animate each version at most once, so a
-    // reconnect replaying the same state never re-triggers it.
-    if (g?.lastAction?.pishti && next.version > animatedVersionRef.current) {
+
+    // Card play / capture / pishpirik — once per version.
+    if (g?.lastAction && next.version > animatedVersionRef.current) {
+      if (g.lastAction.pishti) {
+        const mySeat = seatRef.current;
+        const points = g.lastAction.card.r === "J" ? 20 : 10;
+        setPishtiFlash({ points, mine: mySeat !== null && g.lastAction.playerIdx === mySeat });
+        window.setTimeout(() => setPishtiFlash(null), 1400);
+        if (shouldSound) playSound("pishti");
+      } else if (shouldSound) {
+        playSound(g.lastAction.captured ? "capture" : "play");
+      }
+    }
+
+    if (
+      shouldSound &&
+      g?.status === "finished" &&
+      prevStatusRef.current !== "finished" &&
+      seatRef.current !== null
+    ) {
       const mySeat = seatRef.current;
-      const points = g.lastAction.card.r === "J" ? 20 : 10;
-      setPishtiFlash({ points, mine: mySeat !== null && g.lastAction.playerIdx === mySeat });
-      window.setTimeout(() => setPishtiFlash(null), 1400);
+      if (g.winner === "tie") playSound("chat");
+      else if (g.winner === mySeat) playSound("win");
+      else playSound("lose");
+    }
+
+    // Fresh seat into a just-dealt game (e.g. guest joins) — play deal once.
+    if (!shouldSound && g?.status === "playing" && !g.lastAction) {
+      playSound("deal");
+    }
+
+    if (g) {
+      prevHandCountsRef.current = [g.players[0].handCount, g.players[1].handCount];
+      prevStatusRef.current = g.status;
+    } else {
+      prevHandCountsRef.current = null;
+      prevStatusRef.current = null;
     }
     animatedVersionRef.current = next.version;
+    soundsPrimedRef.current = true;
   }, []);
 
   /** Full authoritative snapshot (used on load, reconnect, and after realtime pings). */
@@ -339,7 +392,10 @@ function GameRoom() {
         : typeof msg.text === "string"
           ? msg.text.trim().slice(0, MAX_CHAT_LEN)
           : "";
-      if (text) showBubble(false, text);
+      if (text) {
+        showBubble(false, text);
+        playSound("chat");
+      }
     });
     channelRef.current = channel;
     channel.subscribe(async (status) => {
@@ -671,7 +727,8 @@ function WaitingRoom({
   const [copied, setCopied] = useState(false);
   return (
     <Centered>
-      <div className="fixed top-4 right-4 z-30">
+      <div className="fixed top-4 right-4 z-30 flex items-center gap-2">
+        <SoundToggle />
         <LanguageToggle />
       </div>
       {opp && (
@@ -855,6 +912,7 @@ function Table(props: TableProps) {
                   : "…"}
             </span>
           </span>
+          <SoundToggle />
           <LanguageToggle />
           <button
             onClick={onLeave}
