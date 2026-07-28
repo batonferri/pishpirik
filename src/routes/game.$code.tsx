@@ -588,11 +588,7 @@ function GameRoom() {
   if (room.status === "waiting" || !game || !view) {
     const meName = seat === 0 ? room.state.host.name : (room.state.guest?.name ?? player.name);
     const oppInLobby =
-      seat !== null && room.state.guest
-        ? seat === 0
-          ? room.state.guest
-          : room.state.host
-        : null;
+      seat !== null && room.state.guest ? (seat === 0 ? room.state.guest : room.state.host) : null;
     return (
       <WaitingRoom
         code={code}
@@ -883,22 +879,6 @@ function Table(props: TableProps) {
       {/* Top bar */}
       <div className="flex items-center justify-between panel px-3 sm:px-4 py-2 text-sm gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="text-[color:var(--color-muted-foreground)] hidden sm:inline">
-            {t("room")}
-          </span>
-          <span className="font-mono tracking-widest text-[color:var(--color-gold)] font-bold">
-            {code}
-          </span>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/game/${code}`);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1800);
-            }}
-            className="text-xs text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] btn-press border border-[color:var(--color-border)] rounded-full px-2.5 py-1"
-          >
-            {copied ? t("copied") : t("copyInvite")}
-          </button>
           <SeriesBadge wins={seriesWins} seat={seat} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -1289,13 +1269,16 @@ function SeriesBadge({ wins, seat }: { wins: [number, number]; seat: 0 | 1 }) {
   const theirs = wins[seat === 0 ? 1 : 0];
   return (
     <span
-      className="text-xs sm:text-sm font-semibold tabular-nums whitespace-nowrap px-2.5 py-1 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-secondary)]/50"
+      className="text-xs sm:text-sm font-semibold tabular-nums whitespace-nowrap px-2.5 py-1"
       title={t("series")}
     >
       <span className="text-[color:var(--color-muted-foreground)] font-medium mr-1.5 hidden sm:inline">
         {t("series")}
       </span>
-      <span key={`s-${mine}-${theirs}`} className="anim-pop inline-block text-[color:var(--color-gold)]">
+      <span
+        key={`s-${mine}-${theirs}`}
+        className="anim-pop inline-block text-[color:var(--color-gold)]"
+      >
         {t("seriesScore", { a: mine, b: theirs })}
       </span>
     </span>
