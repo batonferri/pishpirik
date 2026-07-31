@@ -898,8 +898,18 @@ function Table(props: TableProps) {
           <ChatControl onChat={onChat} menuBelow large />
         </div>
 
-        {/* Opponent — cards centered, seat stuck right */}
-        <div className="relative shrink-0 w-full flex items-end justify-center">
+        {/* Opponent seat — top center of the table */}
+        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5">
+          <PlayerSeat
+            name={opp.name}
+            capturedCount={opp.capturedCount}
+            pishtiPoints={opp.pishtiPoints}
+            online={oppOnline}
+            isTurn={!finished && game.turn !== seat}
+            bubble={oppBubble}
+            bubbleBelow
+            seriesWins={seriesWins[seat === 0 ? 1 : 0]}
+          />
           <div className="hand-fan-mini">
             {Array.from({ length: opp.handCount }).map((_, i) => (
               <div
@@ -918,27 +928,12 @@ function Table(props: TableProps) {
               </div>
             ))}
           </div>
-          <div className="absolute right-0 bottom-0 z-10">
-            <PlayerSeat
-              name={opp.name}
-              capturedCount={opp.capturedCount}
-              pishtiPoints={opp.pishtiPoints}
-              online={oppOnline}
-              isTurn={!finished && game.turn !== seat}
-              bubble={oppBubble}
-              bubbleBelow
-              seriesWins={seriesWins[seat === 0 ? 1 : 0]}
-            />
-          </div>
         </div>
 
-        {/* Center table */}
-        <div className="relative flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-3 md:gap-4 py-0 sm:py-2 min-h-0 overflow-hidden">
+        {/* Board — deck + pile in the felt center */}
+        <div className="absolute left-1/2 top-[48%] sm:top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-4 sm:gap-8">
             <div className="text-center">
-              <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-0.5 sm:mb-1">
-                {t("deck")}
-              </div>
               {game.deckCount > 0 ? (
                 <div className="relative">
                   <PlayingCard faceDown className="border-transparent" size="lg" />
@@ -952,8 +947,8 @@ function Table(props: TableProps) {
             </div>
 
             <div className="text-center">
-              <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-0.5 sm:mb-1">
-                {t("pileCount", { n: game.pile.length })}
+              <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-0.5 sm:mb-2">
+                ({game.pile.length})
               </div>
               <div className="relative w-36 h-40 flex items-center justify-center">
                 {game.pile.length === 0 ? (
@@ -978,7 +973,7 @@ function Table(props: TableProps) {
             </div>
           </div>
 
-          <div className="text-xs sm:text-sm text-[color:var(--color-muted-foreground)] h-5 sm:h-6 text-center shrink-0">
+          <div className="text-xs sm:text-sm text-[color:var(--color-muted-foreground)] h-5 sm:h-6 text-center sm:mt-2">
             {last && (
               <span key={`la-${version}`} className="anim-rise inline-block">
                 {last.playerIdx === seat ? t("youPlayed") : t("oppPlayed", { name: opp.name })}{" "}
@@ -994,39 +989,17 @@ function Table(props: TableProps) {
               </span>
             )}
           </div>
-
-          {starterBanner && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="anim-rise bg-[color:var(--color-popover)] border border-[color:var(--color-gold)] rounded-full px-6 py-2.5 font-bold text-[color:var(--color-gold)] shadow-lg">
-                {starterBanner}
-              </div>
-            </div>
-          )}
-
-          {pishtiFlash && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div className="anim-pishti text-center">
-                <div className="text-4xl sm:text-6xl font-black text-[color:var(--color-gold)] drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
-                  PISHPIRIK!
-                </div>
-                <div className="text-xl sm:text-2xl font-bold mt-1">
-                  {pishtiFlash.mine ? "+" : `${opp.name} +`}
-                  {pishtiFlash.points} {t("points")}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* My hand — cards centered, seat stuck right */}
+        {/* Hero seat — bottom center (cards toward table, seat under cards) */}
         <div
-          className={`relative shrink-0 w-full flex items-end justify-center transition-opacity duration-300 ${
+          className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 transition-opacity duration-300 ${
             myTurn ? "" : "opacity-90"
           }`}
         >
           <div className="hand-fan">
             {view.hand.length === 0 && (
-              <span className="text-[color:var(--color-muted-foreground)] self-center text-sm py-6">
+              <span className="text-[color:var(--color-muted-foreground)] self-center text-sm py-4">
                 {t("noCardsInHand")}
               </span>
             )}
@@ -1050,20 +1023,39 @@ function Table(props: TableProps) {
               </div>
             ))}
           </div>
-          <div className="absolute right-0 bottom-0 z-10">
-            <PlayerSeat
-              name={me.name}
-              capturedCount={me.capturedCount}
-              pishtiPoints={me.pishtiPoints}
-              online
-              isTurn={myTurn}
-              bubble={myBubble}
-              seriesWins={seriesWins[seat]}
-            />
-          </div>
+          <PlayerSeat
+            name={me.name}
+            capturedCount={me.capturedCount}
+            pishtiPoints={me.pishtiPoints}
+            online
+            isTurn={myTurn}
+            bubble={myBubble}
+            seriesWins={seriesWins[seat]}
+          />
         </div>
 
-        {/* Error toast */}
+        {starterBanner && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+            <div className="anim-rise bg-[color:var(--color-popover)] border border-[color:var(--color-gold)] rounded-full px-6 py-2.5 font-bold text-[color:var(--color-gold)] shadow-lg">
+              {starterBanner}
+            </div>
+          </div>
+        )}
+
+        {pishtiFlash && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+            <div className="anim-pishti text-center">
+              <div className="text-4xl sm:text-6xl font-black text-[color:var(--color-gold)] drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+                PISHPIRIK!
+              </div>
+              <div className="text-xl sm:text-2xl font-bold mt-1">
+                {pishtiFlash.mine ? "+" : `${opp.name} +`}
+                {pishtiFlash.points} {t("points")}
+              </div>
+            </div>
+          </div>
+        )}
+
         {toast && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 anim-rise">
             <div className="bg-[color:var(--color-destructive)] text-[color:var(--color-destructive-foreground)] text-sm font-medium px-4 py-2.5 rounded-[var(--radius)] shadow-lg">
@@ -1072,7 +1064,6 @@ function Table(props: TableProps) {
           </div>
         )}
 
-        {/* End-game modal */}
         {finished && showEndModal && <EndModal {...props} />}
       </div>
     </div>
@@ -1085,7 +1076,7 @@ function EmptySlot() {
   );
 }
 
-function Avatar({ name, online }: { name: string; online: boolean }) {
+function Avatar({ name, online, large }: { name: string; online: boolean; large?: boolean }) {
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -1093,12 +1084,17 @@ function Avatar({ name, online }: { name: string; online: boolean }) {
     .slice(0, 2)
     .toUpperCase();
   return (
-    <span className="relative shrink-0">
-      <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[color:var(--color-secondary)] border border-[color:var(--color-border)] flex items-center justify-center text-xs font-bold">
+    <span className="relative shrink-0" title={name}>
+      <span
+        className={`${
+          large ? "w-11 h-11 sm:w-12 sm:h-12 text-base sm:text-lg" : "w-8 h-8 sm:w-9 sm:h-9 text-xs"
+        } rounded-full bg-[color:var(--color-secondary)] border-2 border-[color:var(--color-border)] flex items-center justify-center font-bold tabular-nums shadow-md`}
+        aria-label={name}
+      >
         {initials || "?"}
       </span>
       <span
-        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[color:var(--color-popover)] ${
+        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[color:var(--color-felt-deep)] ${
           online ? "bg-emerald-400" : "bg-zinc-500"
         }`}
         aria-label={online ? "online" : "offline"}
@@ -1111,7 +1107,7 @@ function Avatar({ name, online }: { name: string; online: boolean }) {
 function ChatBubble({ text, below }: { text: string; below?: boolean }) {
   return (
     <span
-      className={`absolute left-1/2 z-30 pointer-events-none anim-bubble ${
+      className={`absolute left-1/2 z-[9999] pointer-events-none anim-bubble ${
         below ? "top-full mt-2.5" : "bottom-full mb-2.5"
       }`}
     >
@@ -1233,36 +1229,6 @@ function ChatControl({
   );
 }
 
-function ScoreChips({
-  capturedCount,
-  pishtiPoints,
-}: {
-  capturedCount: number;
-  pishtiPoints: number;
-}) {
-  const { t } = useI18n();
-  return (
-    <span className="text-[10px] sm:text-xs text-[color:var(--color-muted-foreground)] leading-snug">
-      <span key={`c-${capturedCount}`} className="anim-pop inline-block">
-        {capturedCount}
-      </span>{" "}
-      {t("capturedChip")}
-      {pishtiPoints > 0 && (
-        <>
-          <br className="sm:hidden" />
-          <span className="hidden sm:inline"> · </span>
-          <span
-            key={`p-${pishtiPoints}`}
-            className="anim-pop inline-block text-[color:var(--color-gold)] font-semibold"
-          >
-            +{pishtiPoints} pishpirik
-          </span>
-        </>
-      )}
-    </span>
-  );
-}
-
 /** Series win count from the viewer's perspective: myWins–oppWins. */
 function SeriesBadge({ wins, seat }: { wins: [number, number]; seat: 0 | 1 }) {
   const { t } = useI18n();
@@ -1286,7 +1252,7 @@ function SeriesBadge({ wins, seat }: { wins: [number, number]; seat: 0 | 1 }) {
   );
 }
 
-/** Seat marker to the right of a player's cards — avatar, series wins, score. */
+/** PokerStars-style rim seat: avatar over a compact nameplate with stack + series. */
 function PlayerSeat({
   name,
   capturedCount,
@@ -1309,23 +1275,31 @@ function PlayerSeat({
   const { t } = useI18n();
   return (
     <div
-      className={`max-w-[7.5rem] sm:max-w-[9rem] shrink-0 flex flex-col items-center gap-0.5 sm:gap-1 text-center transition-opacity duration-300 ${
-        isTurn ? "opacity-100" : "opacity-80"
+      className={`shrink-0 flex items-center gap-2 transition-opacity duration-300 ${
+        isTurn ? "opacity-100" : "opacity-85"
       }`}
     >
       <span className="relative shrink-0">
-        <Avatar name={name} online={online} />
+        <span
+          className={`inline-flex rounded-full transition-shadow duration-300 ${
+            isTurn
+              ? "ring-2 ring-[color:var(--color-gold)] shadow-[0_0_16px_oklch(0.82_0.16_85_/_0.45)]"
+              : ""
+          }`}
+        >
+          <Avatar name={name} online={online} large />
+        </span>
         <span
           key={`sw-${seriesWins}`}
-          className="absolute -top-1 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] text-[10px] font-bold tabular-nums flex items-center justify-center leading-none anim-pop shadow-sm"
+          className="absolute -top-1 -right-1.5 min-w-5 h-5 px-1 -full rounded-full bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] text-[10px] font-bold tabular-nums flex items-center justify-center leading-none anim-pop shadow-sm"
           title={t("series")}
         >
           {seriesWins}
         </span>
         {bubble && <ChatBubble key={bubble.id} text={bubble.text} below={bubbleBelow} />}
       </span>
-      <div className="min-w-0 w-full">
-        <div className="font-semibold text-[11px] sm:text-sm truncate flex items-center justify-center gap-1 leading-tight">
+      <div className={`min-w-0 max-w-[7.5rem] px-2 py-1 text-left`}>
+        <div className="font-semibold text-[11px] sm:text-sm truncate flex items-center gap-1 leading-tight">
           <span className="truncate">{name}</span>
           {!online && (
             <span className="text-[10px] uppercase tracking-wide text-amber-400 anim-blink shrink-0">
@@ -1333,8 +1307,21 @@ function PlayerSeat({
             </span>
           )}
         </div>
-        <div className="mt-0.5">
-          <ScoreChips capturedCount={capturedCount} pishtiPoints={pishtiPoints} />
+        <div className="flex items-center gap-1">
+          {capturedCount > 0 && (
+            <div className="mt-0.5 text-[10px] sm:text-xs font-semibold tabular-nums">
+              <span key={`c-${capturedCount}`} className="anim-pop inline-block">
+                {capturedCount}
+              </span>
+            </div>
+          )}
+          {pishtiPoints > 0 && (
+            <div className="mt-0.5 text-[10px] sm:text-xs font-semibold text-[color:var(--color-gold)] tabular-nums">
+              <span key={`p-${pishtiPoints}`} className="anim-pop inline-block">
+                +{pishtiPoints}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
