@@ -29,13 +29,13 @@ import {
   type PublicGameState,
   type PublicRoom,
 } from "@/lib/room-engine";
-import { PlayingCard } from "@/components/PlayingCard";
+import { handFanStyle, PlayingCard } from "@/components/PlayingCard";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { SoundToggle } from "@/components/SoundToggle";
 import { translate, useI18n, type TranslationKey } from "@/lib/i18n";
 import { cardEq, cardPoints, type Card } from "@/lib/pishpirik";
 import { initSounds, playSound } from "@/lib/sounds";
-import { MessageCircle } from "lucide-react";
+import { LogOut, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/game/$code")({
   head: ({ params }) => ({
@@ -875,227 +875,213 @@ function Table(props: TableProps) {
   }, [finished, props.endReason]);
 
   return (
-    <div className="min-h-screen flex flex-col p-3 sm:p-4 md:p-6 gap-3 md:gap-4 max-w-5xl mx-auto w-full">
-      {/* Top bar */}
-      <div className="flex items-center justify-between panel px-3 sm:px-4 py-2 text-sm gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <SeriesBadge wins={seriesWins} seat={seat} />
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="flex items-center gap-1.5 text-xs text-[color:var(--color-muted-foreground)]">
-            <ConnDot conn={conn} />
-            <span className="hidden sm:inline">
-              {conn === "online"
-                ? t("connected")
-                : conn === "reconnecting"
-                  ? t("reconnecting")
-                  : "…"}
-            </span>
-          </span>
-          <SoundToggle />
-          <LanguageToggle />
-          <button
-            onClick={onLeave}
-            className="text-[color:var(--color-muted-foreground)] hover:underline"
-          >
-            {t("leave")}
-          </button>
-        </div>
-      </div>
-
-      {/* Status banners */}
+    <div className="h-dvh max-h-dvh overflow-hidden flex flex-col">
+      {/* Status banners — full-bleed sticky top */}
       {conn === "reconnecting" && <Banner tone="warn">{t("connectionLost")}</Banner>}
       {oppDisconnected && (
         <Banner tone="warn">{t("oppDisconnected", { name: opp.name, s: graceLeft })}</Banner>
       )}
 
-      {/* Opponent */}
-      <PlayerPanel
-        name={opp.name}
-        capturedCount={opp.capturedCount}
-        pishtiPoints={opp.pishtiPoints}
-        handCount={opp.handCount}
-        isTurn={!finished && game.turn !== seat}
-        online={oppOnline}
-        opponent
-        gameNo={gameNo}
-        bubble={oppBubble}
-      />
+      <div className="relative flex-1 flex flex-col p-2 sm:p-4 md:p-6 gap-1.5 sm:gap-3 md:gap-4 max-w-5xl mx-auto w-full min-h-0 overflow-hidden">
+        <div className="absolute top-5 left-2 sm:top-7 sm:left-4 z-30 flex flex-col items-center gap-2 sm:gap-2.5">
+          <button
+            type="button"
+            onClick={onLeave}
+            aria-label={t("leave")}
+            title={t("leave")}
+            className="btn-press rounded-full border border-[color:var(--color-border)] p-2 sm:p-3 bg-[color:var(--color-input)]/80 text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] hover:bg-[color:var(--color-secondary)] transition-colors"
+          >
+            <LogOut className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden />
+          </button>
+          <LanguageToggle variant="menu" large menuBelow />
+          <SoundToggle className="p-2 sm:p-3 bg-[color:var(--color-input)]/80 [&_svg]:size-5 sm:[&_svg]:size-6" />
+          <ChatControl onChat={onChat} menuBelow large />
+        </div>
 
-      {/* Center table */}
-      <div className="relative flex-1 flex flex-col items-center justify-center gap-3 md:gap-4 py-2">
-        <div className="flex items-center gap-5 sm:gap-8">
-          <div className="text-center">
-            <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-1">
-              {t("deck")}
-            </div>
-            {game.deckCount > 0 ? (
-              <div className="relative">
-                <PlayingCard faceDown />
-                <span className="absolute -bottom-2 -right-2 text-xs bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] rounded-full px-2 py-0.5 font-bold">
-                  {game.deckCount}
-                </span>
+        {/* Opponent — cards centered, seat stuck right */}
+        <div className="relative shrink-0 w-full flex items-end justify-center">
+          <div className="hand-fan-mini">
+            {Array.from({ length: opp.handCount }).map((_, i) => (
+              <div
+                key={`${gameNo}-opp-${i}`}
+                className="hand-fan-mini-slot"
+                style={handFanStyle(i, opp.handCount, { stepDeg: 8, dropPx: 2 })}
+              >
+                <div
+                  className={`card-back w-20 h-[7.5rem] anim-deal transition-[box-shadow,border-color] duration-300 ${
+                    !finished && game.turn !== seat
+                      ? "border-[color:var(--color-gold)] shadow-[0_0_0_1px_var(--color-gold),0_0_14px_oklch(0.82_0.16_85_/_0.45)]"
+                      : "border-transparent"
+                  }`}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                />
               </div>
-            ) : (
-              <EmptySlot />
+            ))}
+          </div>
+          <div className="absolute right-0 bottom-0 z-10">
+            <PlayerSeat
+              name={opp.name}
+              capturedCount={opp.capturedCount}
+              pishtiPoints={opp.pishtiPoints}
+              online={oppOnline}
+              isTurn={!finished && game.turn !== seat}
+              bubble={oppBubble}
+              bubbleBelow
+              seriesWins={seriesWins[seat === 0 ? 1 : 0]}
+            />
+          </div>
+        </div>
+
+        {/* Center table */}
+        <div className="relative flex-1 flex flex-col items-center justify-center gap-1.5 sm:gap-3 md:gap-4 py-0 sm:py-2 min-h-0 overflow-hidden">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <div className="text-center">
+              <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-0.5 sm:mb-1">
+                {t("deck")}
+              </div>
+              {game.deckCount > 0 ? (
+                <div className="relative">
+                  <PlayingCard faceDown className="border-transparent" size="lg" />
+                  <span className="absolute -bottom-2 -right-2 text-xs bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] rounded-full px-2 py-0.5 font-bold">
+                    {game.deckCount}
+                  </span>
+                </div>
+              ) : (
+                <EmptySlot />
+              )}
+            </div>
+
+            <div className="text-center">
+              <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-0.5 sm:mb-1">
+                {t("pileCount", { n: game.pile.length })}
+              </div>
+              <div className="relative w-36 h-40 flex items-center justify-center">
+                {game.pile.length === 0 ? (
+                  <EmptySlot />
+                ) : (
+                  game.pile.slice(-3).map((c, i, arr) => {
+                    const isTop = i === arr.length - 1;
+                    return (
+                      <div
+                        key={`${c.r}${c.s}`}
+                        className={`absolute ${isTop ? "anim-play" : ""}`}
+                        style={{
+                          transform: `translate(${(i - arr.length + 1) * 8}px, ${(i - arr.length + 1) * -4}px) rotate(${(i - arr.length + 1) * 4}deg)`,
+                        }}
+                      >
+                        <PlayingCard card={c} size="lg" />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-xs sm:text-sm text-[color:var(--color-muted-foreground)] h-5 sm:h-6 text-center shrink-0">
+            {last && (
+              <span key={`la-${version}`} className="anim-rise inline-block">
+                {last.playerIdx === seat ? t("youPlayed") : t("oppPlayed", { name: opp.name })}{" "}
+                <b className="text-[color:var(--color-foreground)]">
+                  {last.card.r}
+                  {suitGlyph(last.card.s)}
+                </b>
+                {last.captured && (
+                  <span className="text-[color:var(--color-gold)] font-semibold anim-pop inline-block ml-1">
+                    {t("capturedPile")}
+                  </span>
+                )}
+              </span>
             )}
           </div>
 
-          <div className="text-center">
-            <div className="text-[10px] sm:text-xs uppercase tracking-widest text-[color:var(--color-muted-foreground)] mb-1">
-              {t("pileCount", { n: game.pile.length })}
+          {starterBanner && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="anim-rise bg-[color:var(--color-popover)] border border-[color:var(--color-gold)] rounded-full px-6 py-2.5 font-bold text-[color:var(--color-gold)] shadow-lg">
+                {starterBanner}
+              </div>
             </div>
-            <div className="relative w-24 h-24 sm:h-32 flex items-center justify-center">
-              {game.pile.length === 0 ? (
-                <EmptySlot />
-              ) : (
-                game.pile.slice(-3).map((c, i, arr) => {
-                  const isTop = i === arr.length - 1;
-                  return (
-                    <div
-                      key={`${c.r}${c.s}`}
-                      className={`absolute ${isTop ? "anim-play" : ""}`}
-                      style={{
-                        transform: `translate(${(i - arr.length + 1) * 8}px, ${(i - arr.length + 1) * -4}px) rotate(${(i - arr.length + 1) * 4}deg)`,
-                      }}
-                    >
-                      <PlayingCard card={c} />
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+          )}
 
-        {/* Last action line */}
-        <div className="text-sm text-[color:var(--color-muted-foreground)] h-6 text-center">
-          {last && (
-            <span key={`la-${version}`} className="anim-rise inline-block">
-              {last.playerIdx === seat ? t("youPlayed") : t("oppPlayed", { name: opp.name })}{" "}
-              <b className="text-[color:var(--color-foreground)]">
-                {last.card.r}
-                {suitGlyph(last.card.s)}
-              </b>
-              {last.captured && (
-                <span className="text-[color:var(--color-gold)] font-semibold anim-pop inline-block ml-1">
-                  {t("capturedPile")}
-                </span>
-              )}
-            </span>
+          {pishtiFlash && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <div className="anim-pishti text-center">
+                <div className="text-4xl sm:text-6xl font-black text-[color:var(--color-gold)] drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+                  PISHPIRIK!
+                </div>
+                <div className="text-xl sm:text-2xl font-bold mt-1">
+                  {pishtiFlash.mine ? "+" : `${opp.name} +`}
+                  {pishtiFlash.points} {t("points")}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Turn chip */}
-        {!finished && (
-          <div
-            className={`text-sm font-semibold px-4 py-1.5 rounded-full transition-colors duration-300 ${
-              myTurn
-                ? "bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)]"
-                : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
-            }`}
-          >
-            {myTurn ? t("yourTurn") : t("oppTurn", { name: opp.name })}
-          </div>
-        )}
-
-        {/* Starter banner */}
-        {starterBanner && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="anim-rise bg-[color:var(--color-popover)] border border-[color:var(--color-gold)] rounded-full px-6 py-2.5 font-bold text-[color:var(--color-gold)] shadow-lg">
-              {starterBanner}
-            </div>
-          </div>
-        )}
-
-        {/* Pishpirik celebration */}
-        {pishtiFlash && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-            <div className="anim-pishti text-center">
-              <div className="text-4xl sm:text-6xl font-black text-[color:var(--color-gold)] drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
-                PISHPIRIK!
+        {/* My hand — cards centered, seat stuck right */}
+        <div
+          className={`relative shrink-0 w-full flex items-end justify-center transition-opacity duration-300 ${
+            myTurn ? "" : "opacity-90"
+          }`}
+        >
+          <div className="hand-fan">
+            {view.hand.length === 0 && (
+              <span className="text-[color:var(--color-muted-foreground)] self-center text-sm py-6">
+                {t("noCardsInHand")}
+              </span>
+            )}
+            {view.hand.map((c, i) => (
+              <div
+                key={`${gameNo}-${c.r}${c.s}`}
+                className="hand-fan-slot"
+                style={handFanStyle(i, view.hand.length)}
+              >
+                <PlayingCard
+                  card={c}
+                  size="lg"
+                  onClick={() => onPlay(c)}
+                  disabled={!myTurn || pending}
+                  highlight={myTurn}
+                  className={`anim-deal transition-[box-shadow] duration-300 ${
+                    myTurn ? "shadow-[0_0_14px_oklch(0.82_0.16_85_/_0.45)]" : ""
+                  }`}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                />
               </div>
-              <div className="text-xl sm:text-2xl font-bold mt-1">
-                {pishtiFlash.mine ? "+" : `${opp.name} +`}
-                {pishtiFlash.points} {t("points")}
-              </div>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* My hand */}
-      <div
-        className={`panel p-3 sm:p-4 transition-shadow duration-300 ${myTurn ? "turn-glow" : ""}`}
-      >
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="relative shrink-0">
-              <Avatar name={me.name} online />
-              {myBubble && <ChatBubble key={myBubble.id} text={myBubble.text} />}
-            </span>
-            <span className="font-semibold truncate">{me.name}</span>
-            <ScoreChips capturedCount={me.capturedCount} pishtiPoints={me.pishtiPoints} />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChatControl onChat={onChat} />
-            <div
-              className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full shrink-0 ${
-                finished
-                  ? "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
-                  : myTurn
-                    ? "bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)]"
-                    : "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
-              }`}
-            >
-              {finished
-                ? t("gameOver")
-                : myTurn
-                  ? pending
-                    ? t("playingNow")
-                    : t("yourTurn")
-                  : t("waiting")}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 justify-center min-h-[6rem]">
-          {view.hand.length === 0 && (
-            <span className="text-[color:var(--color-muted-foreground)] self-center text-sm">
-              {t("noCardsInHand")}
-            </span>
-          )}
-          {view.hand.map((c, i) => (
-            <PlayingCard
-              key={`${gameNo}-${c.r}${c.s}`}
-              card={c}
-              size="lg"
-              onClick={() => onPlay(c)}
-              disabled={!myTurn || pending}
-              className="anim-deal"
-              style={{ animationDelay: `${i * 60}ms` }}
+          <div className="absolute right-0 bottom-0 z-10">
+            <PlayerSeat
+              name={me.name}
+              capturedCount={me.capturedCount}
+              pishtiPoints={me.pishtiPoints}
+              online
+              isTurn={myTurn}
+              bubble={myBubble}
+              seriesWins={seriesWins[seat]}
             />
-          ))}
-        </div>
-      </div>
-
-      {/* Error toast */}
-      {toast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 anim-rise">
-          <div className="bg-[color:var(--color-destructive)] text-[color:var(--color-destructive-foreground)] text-sm font-medium px-4 py-2.5 rounded-[var(--radius)] shadow-lg">
-            {toast}
           </div>
         </div>
-      )}
 
-      {/* End-game modal */}
-      {finished && showEndModal && <EndModal {...props} />}
+        {/* Error toast */}
+        {toast && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 anim-rise">
+            <div className="bg-[color:var(--color-destructive)] text-[color:var(--color-destructive-foreground)] text-sm font-medium px-4 py-2.5 rounded-[var(--radius)] shadow-lg">
+              {toast}
+            </div>
+          </div>
+        )}
+
+        {/* End-game modal */}
+        {finished && showEndModal && <EndModal {...props} />}
+      </div>
     </div>
   );
 }
 
 function EmptySlot() {
   return (
-    <div className="w-14 h-20 sm:w-16 sm:h-24 rounded-[var(--radius)] border-2 border-dashed border-[color:var(--color-border)]" />
+    <div className="w-24 h-36 rounded-[var(--radius)] border-2 border-dashed border-[color:var(--color-border)]" />
   );
 }
 
@@ -1146,7 +1132,15 @@ function ChatBubble({ text, below }: { text: string; below?: boolean }) {
   );
 }
 
-function ChatControl({ onChat }: { onChat: TableProps["onChat"] }) {
+function ChatControl({
+  onChat,
+  menuBelow,
+  large,
+}: {
+  onChat: TableProps["onChat"];
+  menuBelow?: boolean;
+  large?: boolean;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -1183,16 +1177,22 @@ function ChatControl({ onChat }: { onChat: TableProps["onChat"] }) {
         onClick={() => setOpen((v) => !v)}
         aria-label={t("chat")}
         aria-expanded={open}
-        className={`btn-press rounded-full border border-[color:var(--color-border)] p-1.5 sm:p-2 transition-colors ${
+        className={`btn-press rounded-full border border-[color:var(--color-border)] transition-colors ${
+          large ? "p-2.5 sm:p-3 bg-[color:var(--color-input)]/80" : "p-1.5 sm:p-2"
+        } ${
           open
             ? "bg-[color:var(--color-secondary)] text-[color:var(--color-foreground)]"
             : "text-[color:var(--color-muted-foreground)] hover:text-[color:var(--color-foreground)] hover:bg-[color:var(--color-secondary)]"
         }`}
       >
-        <MessageCircle className="w-4 h-4" aria-hidden />
+        <MessageCircle className={large ? "w-5 h-5 sm:w-6 sm:h-6" : "w-4 h-4"} aria-hidden />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-40 panel p-3 w-72 anim-rise">
+        <div
+          className={`absolute z-40 panel p-3 w-72 anim-rise ${
+            menuBelow ? "top-full left-0 mt-2" : "bottom-full right-0 mb-2"
+          }`}
+        >
           <div className="flex flex-wrap gap-1.5 mb-2.5">
             {CHAT_PRESETS.map((key) => (
               <button
@@ -1242,14 +1242,15 @@ function ScoreChips({
 }) {
   const { t } = useI18n();
   return (
-    <span className="text-xs text-[color:var(--color-muted-foreground)] whitespace-nowrap">
+    <span className="text-[10px] sm:text-xs text-[color:var(--color-muted-foreground)] leading-snug">
       <span key={`c-${capturedCount}`} className="anim-pop inline-block">
         {capturedCount}
       </span>{" "}
       {t("capturedChip")}
       {pishtiPoints > 0 && (
         <>
-          {" · "}
+          <br className="sm:hidden" />
+          <span className="hidden sm:inline"> · </span>
           <span
             key={`p-${pishtiPoints}`}
             className="anim-pop inline-block text-[color:var(--color-gold)] font-semibold"
@@ -1285,65 +1286,56 @@ function SeriesBadge({ wins, seat }: { wins: [number, number]; seat: 0 | 1 }) {
   );
 }
 
-function PlayerPanel({
+/** Seat marker to the right of a player's cards — avatar, series wins, score. */
+function PlayerSeat({
   name,
   capturedCount,
   pishtiPoints,
-  handCount,
-  isTurn,
   online,
-  gameNo,
+  isTurn,
   bubble,
+  bubbleBelow,
+  seriesWins,
 }: {
   name: string;
   capturedCount: number;
   pishtiPoints: number;
-  handCount: number;
-  isTurn: boolean;
   online: boolean;
-  opponent?: boolean;
-  gameNo: number;
+  isTurn: boolean;
   bubble?: ChatBubbleState | null;
+  bubbleBelow?: boolean;
+  seriesWins: number;
 }) {
   const { t } = useI18n();
   return (
     <div
-      className={`panel p-3 flex items-center justify-between gap-2 transition-shadow duration-300 ${
-        isTurn ? "turn-glow" : ""
+      className={`max-w-[7.5rem] sm:max-w-[9rem] shrink-0 flex flex-col items-center gap-0.5 sm:gap-1 text-center transition-opacity duration-300 ${
+        isTurn ? "opacity-100" : "opacity-80"
       }`}
     >
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <span className="relative shrink-0">
-          <Avatar name={name} online={online} />
-          {bubble && <ChatBubble key={bubble.id} text={bubble.text} below />}
+      <span className="relative shrink-0">
+        <Avatar name={name} online={online} />
+        <span
+          key={`sw-${seriesWins}`}
+          className="absolute -top-1 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] text-[10px] font-bold tabular-nums flex items-center justify-center leading-none anim-pop shadow-sm"
+          title={t("series")}
+        >
+          {seriesWins}
         </span>
-        <div className="min-w-0">
-          <div className="font-semibold truncate flex items-center gap-2">
-            {name}
-            {!online && (
-              <span className="text-[10px] uppercase tracking-wide text-amber-400 anim-blink">
-                {t("offline")}
-              </span>
-            )}
-          </div>
+        {bubble && <ChatBubble key={bubble.id} text={bubble.text} below={bubbleBelow} />}
+      </span>
+      <div className="min-w-0 w-full">
+        <div className="font-semibold text-[11px] sm:text-sm truncate flex items-center justify-center gap-1 leading-tight">
+          <span className="truncate">{name}</span>
+          {!online && (
+            <span className="text-[10px] uppercase tracking-wide text-amber-400 anim-blink shrink-0">
+              {t("offline")}
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5">
           <ScoreChips capturedCount={capturedCount} pishtiPoints={pishtiPoints} />
         </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="flex gap-1">
-          {Array.from({ length: handCount }).map((_, i) => (
-            <div
-              key={`${gameNo}-${i}`}
-              className="card-back w-6 h-9 sm:w-8 sm:h-12 anim-deal"
-              style={{ animationDelay: `${i * 60}ms` }}
-            />
-          ))}
-        </div>
-        {isTurn && (
-          <span className="text-xs font-bold text-[color:var(--color-gold)] uppercase tracking-widest anim-rise">
-            {t("turn")}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -1352,10 +1344,10 @@ function PlayerPanel({
 function Banner({ tone, children }: { tone: "warn" | "info"; children: React.ReactNode }) {
   return (
     <div
-      className={`anim-rise text-sm font-medium px-4 py-2 rounded-[var(--radius)] text-center ${
+      className={`sticky top-0 z-[9999] w-full shrink-0 anim-rise text-sm font-medium px-4 py-2.5 text-center rounded-none border-x-0 border-t-0 ${
         tone === "warn"
-          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-          : "bg-[color:var(--color-secondary)] text-[color:var(--color-secondary-foreground)]"
+          ? "bg-amber-500/30 text-amber-300 border-b border-amber-500/40"
+          : "bg-[color:var(--color-secondary)] text-[color:var(--color-secondary-foreground)] border-b border-[color:var(--color-border)]"
       }`}
     >
       {children}
