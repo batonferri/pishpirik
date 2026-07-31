@@ -157,6 +157,78 @@
   border: 2px solid var(--color-gold);
 }
 
+/* Fanned hand — cards pivot from the bottom like a held arch */
+@utility hand-fan {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 0;
+  padding: 0.85rem 1.15rem 0.15rem;
+}
+@utility hand-fan-slot {
+  position: relative;
+  flex-shrink: 0;
+  transform-origin: 50% 100%;
+  margin-left: -1.45rem;
+  transition: filter 0.15s ease;
+}
+.hand-fan-slot:first-child {
+  margin-left: 0;
+}
+.hand-fan-slot:hover,
+.hand-fan-slot:focus-within {
+  z-index: 40 !important;
+  filter: drop-shadow(0 10px 14px oklch(0 0 0 / 0.35));
+}
+@media (min-width: 640px) {
+  .hand-fan {
+    min-height: 12rem;
+    padding: 1.75rem 2.25rem 0.5rem;
+  }
+  .hand-fan-slot {
+    margin-left: -1.7rem;
+  }
+}
+@media (min-width: 768px) {
+  .hand-fan {
+    min-height: 14rem;
+  }
+  .hand-fan-slot {
+    margin-left: -2rem;
+  }
+}
+
+@utility hand-fan-mini {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-top: 0.15rem;
+  padding-bottom: 0;
+}
+@utility hand-fan-mini-slot {
+  position: relative;
+  flex-shrink: 0;
+  transform-origin: 50% 100%;
+  margin-left: -1.05rem;
+}
+.hand-fan-mini-slot:first-child {
+  margin-left: 0;
+}
+@media (min-width: 640px) {
+  .hand-fan-mini {
+    padding-top: 0.35rem;
+    padding-bottom: 0.1rem;
+  }
+  .hand-fan-mini-slot {
+    margin-left: -1.35rem;
+  }
+}
+@media (min-width: 768px) {
+  .hand-fan-mini-slot {
+    margin-left: -1.6rem;
+  }
+}
+
 @utility btn-press {
   transition:
     transform 0.12s ease,
