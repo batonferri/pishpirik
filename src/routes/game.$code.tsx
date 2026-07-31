@@ -900,17 +900,19 @@ function Table(props: TableProps) {
 
         {/* Opponent seat — top center of the table */}
         <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5">
-          <PlayerSeat
-            name={opp.name}
-            capturedCount={opp.capturedCount}
-            pishtiPoints={opp.pishtiPoints}
-            online={oppOnline}
-            isTurn={!finished && game.turn !== seat}
-            bubble={oppBubble}
-            bubbleBelow
-            seriesWins={seriesWins[seat === 0 ? 1 : 0]}
-          />
-          <div className="hand-fan-mini">
+          <div className={`relative ${oppBubble ? "z-50" : "z-30"}`}>
+            <PlayerSeat
+              name={opp.name}
+              capturedCount={opp.capturedCount}
+              pishtiPoints={opp.pishtiPoints}
+              online={oppOnline}
+              isTurn={!finished && game.turn !== seat}
+              bubble={oppBubble}
+              bubbleBelow
+              seriesWins={seriesWins[seat === 0 ? 1 : 0]}
+            />
+          </div>
+          <div className="relative z-10 hand-fan-mini">
             {Array.from({ length: opp.handCount }).map((_, i) => (
               <div
                 key={`${gameNo}-opp-${i}`}
@@ -997,7 +999,7 @@ function Table(props: TableProps) {
             myTurn ? "" : "opacity-90"
           }`}
         >
-          <div className="hand-fan">
+          <div className="relative z-10 hand-fan">
             {view.hand.length === 0 && (
               <span className="text-[color:var(--color-muted-foreground)] self-center text-sm py-4">
                 {t("noCardsInHand")}
@@ -1023,15 +1025,17 @@ function Table(props: TableProps) {
               </div>
             ))}
           </div>
-          <PlayerSeat
-            name={me.name}
-            capturedCount={me.capturedCount}
-            pishtiPoints={me.pishtiPoints}
-            online
-            isTurn={myTurn}
-            bubble={myBubble}
-            seriesWins={seriesWins[seat]}
-          />
+          <div className={`relative ${myBubble ? "z-50" : "z-30"}`}>
+            <PlayerSeat
+              name={me.name}
+              capturedCount={me.capturedCount}
+              pishtiPoints={me.pishtiPoints}
+              online
+              isTurn={myTurn}
+              bubble={myBubble}
+              seriesWins={seriesWins[seat]}
+            />
+          </div>
         </div>
 
         {starterBanner && (
@@ -1103,22 +1107,22 @@ function Avatar({ name, online, large }: { name: string; online: boolean; large?
   );
 }
 
-/** Speech bubble anchored to an avatar. Points down at the avatar by default; `below` flips it. */
+/** Speech bubble anchored to an avatar. Points up by default; `below` flips it. */
 function ChatBubble({ text, below }: { text: string; below?: boolean }) {
   return (
     <span
-      className={`absolute left-1/2 z-[9999] pointer-events-none anim-bubble ${
+      className={`absolute left-1/2 z-[100] pointer-events-none anim-bubble ${
         below ? "top-full mt-2.5" : "bottom-full mb-2.5"
       }`}
     >
       <span
-        className={`relative block -translate-x-4 w-max max-w-[min(240px,60vw)] bg-[color:var(--color-card)] text-[color:var(--color-card-foreground)] text-sm font-medium px-3 py-1.5 rounded-xl shadow-lg break-words ${
+        className={`relative block -translate-x-1/2 w-max max-w-[min(240px,70vw)] bg-[color:var(--color-card)] text-[color:var(--color-card-foreground)] text-sm font-medium px-3 py-1.5 rounded-xl shadow-[0_8px_24px_oklch(0_0_0_/_0.45)] break-words ${
           below ? "rounded-tl-sm" : "rounded-bl-sm"
         }`}
       >
         {text}
         <span
-          className={`absolute left-2.5 w-2.5 h-2.5 bg-[color:var(--color-card)] rotate-45 ${
+          className={`absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[color:var(--color-card)] rotate-45 ${
             below ? "-top-1" : "-bottom-1"
           }`}
           aria-hidden
@@ -1276,10 +1280,10 @@ function PlayerSeat({
   return (
     <div
       className={`shrink-0 flex items-center gap-2 transition-opacity duration-300 ${
-        isTurn ? "opacity-100" : "opacity-85"
-      }`}
+        bubble ? "relative z-50" : ""
+      } ${isTurn ? "opacity-100" : "opacity-85"}`}
     >
-      <span className="relative shrink-0">
+      <span className="relative z-50 shrink-0">
         <span
           className={`inline-flex rounded-full transition-shadow duration-300 ${
             isTurn
@@ -1291,7 +1295,7 @@ function PlayerSeat({
         </span>
         <span
           key={`sw-${seriesWins}`}
-          className="absolute -top-1 -right-1.5 min-w-5 h-5 px-1 -full rounded-full bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] text-[10px] font-bold tabular-nums flex items-center justify-center leading-none anim-pop shadow-sm"
+          className="absolute -top-1 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-[color:var(--color-gold)] text-[color:var(--color-gold-foreground)] text-[10px] font-bold tabular-nums flex items-center justify-center leading-none anim-pop shadow-sm"
           title={t("series")}
         >
           {seriesWins}
